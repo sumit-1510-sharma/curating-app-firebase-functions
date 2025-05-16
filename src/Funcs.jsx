@@ -31,7 +31,8 @@ const Funcs = () => {
 
   const createUser = async (uid, name, mood, activity, imageFile = null) => {
     try {
-      const defaultPhotoUrl = "https://yourdomain.com/default-user-image.png";
+      const defaultPhotoUrl =
+        "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d38231ee-ef01-46bd-86e7-7b3e76df3d16";
       let photoUrl = defaultPhotoUrl;
 
       if (imageFile) {
