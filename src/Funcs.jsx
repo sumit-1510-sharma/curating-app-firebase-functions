@@ -595,6 +595,44 @@ const Funcs = () => {
     return memberSnap.exists();
   };
 
+  const getSpacesFromFollowings = async (userId) => {
+    try {
+      const followingsRef = collection(db, `users/${userId}/followings`);
+      const followingsSnap = await getDocs(followingsRef);
+      const followingIds = followingsSnap.docs.map((doc) => doc.id);
+
+      const allSpaces = [];
+
+      // Firestore `in` query supports up to 10 values at a time
+      for (let i = 0; i < followingIds.length; i += 10) {
+        const batch = followingIds.slice(i, i + 10);
+
+        const spacesQuery = query(
+          collection(db, "spaces"),
+          where("hostId", "in", batch)
+        );
+
+        const batchSnap = await getDocs(spacesQuery);
+        batchSnap.forEach((doc) => {
+          allSpaces.push({ id: doc.id, ...doc.data() });
+        });
+      }
+
+      // Sort by createdAt descending
+      allSpaces.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB - dateA;
+      });
+
+      console.log(allSpaces);
+      return allSpaces;
+    } catch (error) {
+      console.error("Error fetching spaces from followers:", error);
+      return [];
+    }
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -706,6 +744,11 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Join Space</h3>
         <button onClick={() => isBlockedBy(sourceId, targetId)}>join</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Get Spaces from followings</h3>
+        <button onClick={() => getSpacesFromFollowings(sourceId)}>Get</button>
       </div>
 
       {/* <div className="function-block">
