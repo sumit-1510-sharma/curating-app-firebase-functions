@@ -11,6 +11,7 @@ import {
   orderBy,
   query,
   runTransaction,
+  serverTimestamp,
   setDoc,
   startAfter,
   where,
@@ -266,7 +267,7 @@ const Funcs = () => {
       await uploadBytes(coverRef, coverImage);
       const coverUrl = await getDownloadURL(coverRef);
 
-      const createdAt = new Date().toISOString();
+      const createdAt = serverTimestamp();
 
       const baseData = {
         activity,
@@ -624,12 +625,8 @@ const Funcs = () => {
         });
       }
 
-      // Sort by createdAt descending
-      allSpaces.sort((a, b) => {
-        const dateA = new Date(a.createdAt);
-        const dateB = new Date(b.createdAt);
-        return dateB - dateA;
-      });
+      // Sort by createdAt (Firestore Timestamp) descending
+      allSpaces.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 
       console.log(allSpaces);
       return allSpaces;
