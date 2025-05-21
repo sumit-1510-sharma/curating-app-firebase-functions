@@ -51,6 +51,12 @@ const Funcs = () => {
   const sourceId = "12345";
   const targetId = "54321";
 
+  spaceId = "0ifF7IT7xHpjsBDG6Nmc";
+  memberId = "12345";
+  name = "sumit sharma";
+  profileUrl =
+    "https://plus.unsplash.com/premium_photo-1689568126014-06fea9d5d341?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cHJvZmlsZXxlbnwwfHwwfHx8MA%3D%3D";
+
   const mood = "chill";
   const activity = "vibing";
 
@@ -633,6 +639,24 @@ const Funcs = () => {
     }
   };
 
+  const updateUserMoodAndActivity = async (userId, mood, activity) => {
+    if (!userId || !mood || !activity) {
+      throw new Error("User ID, mood, and activity are required.");
+    }
+
+    const userRef = doc(db, "users", userId);
+
+    try {
+      await updateDoc(userRef, {
+        mood,
+        activity,
+      });
+    } catch (error) {
+      console.error("Error updating user mood and activity:", error);
+      throw error;
+    }
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -743,12 +767,14 @@ const Funcs = () => {
 
       <div className="function-block">
         <h3>Join Space</h3>
-        <button onClick={() => isBlockedBy(sourceId, targetId)}>join</button>
+        <button onClick={() => joinSpace()}>join</button>
       </div>
 
       <div className="function-block">
         <h3>Get Spaces from followings</h3>
-        <button onClick={() => getSpacesFromFollowings(sourceId)}>Get</button>
+        <button onClick={() => getSpacesFromFollowings(spaceId, name)}>
+          Get
+        </button>
       </div>
 
       {/* <div className="function-block">
