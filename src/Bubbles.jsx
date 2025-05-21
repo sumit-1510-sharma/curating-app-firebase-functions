@@ -11,7 +11,7 @@ const Bubbles = () => {
 
   useEffect(() => {
     const fetchBubbles = async () => {
-      const bubblesSnap = await getDocs(collection(db, "bubbles"));
+      const bubblesSnap = await getDocs(collection(db, "spaces"));
       const bubbles = bubblesSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),

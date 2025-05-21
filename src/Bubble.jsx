@@ -15,18 +15,21 @@ const currentUser = {
   photoURL:
     "https://images.pexels.com/photos/1054655/pexels-photo-1054655.jpeg?cs=srgb&dl=pexels-hsapir-1054655.jpg&fm=jpg",
 };
+const music = MusicKit.getInstance();
 
 export default function Bubble() {
   const { bubbleId } = useParams();
   const location = useLocation();
   const { bubble } = location.state || {};
   const audioRef = useRef(null);
+  const controlAudioRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [books, setBooks] = useState([]);
   const [songs, setSongs] = useState([]);
   const [queue, setQueue] = useState([]);
   const [loading, setLoading] = useState(false);
   const [requests, setRequests] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(null);
 
   const isHost = currentUser.name === bubble?.host;
 
@@ -77,6 +80,10 @@ export default function Bubble() {
   };
 
   useEffect(() => {
+    console.log(music);
+  }, []);
+
+  useEffect(() => {
     if (!bubbleId) return;
 
     const queueRef = collection(db, "bubbles", bubbleId, "queue");
@@ -93,8 +100,29 @@ export default function Bubble() {
     return () => unsubscribe();
   }, [bubbleId]);
 
-  const playSong = (songId) => {
-    const music = MusicKit.getInstance();
+  useEffect(() => {
+    const handlePlaybackChange = () => {
+      if (music.playbackState === 2) {
+        if (currentIndex < queue.length - 1) {
+          playSong(currentIndex + 1); // Play next song
+        }
+      }
+    };
+
+    music.addEventListener("playbackStateDidChange", handlePlaybackChange);
+
+    return () => {
+      music.removeEventListener("playbackStateDidChange", handlePlaybackChange);
+    };
+  }, [currentIndex, queue]);
+
+  const playSongAtIndex = (index) => {
+    const songId = queue[index].songId;
+    if (!songId) return;
+
+    setCurrentIndex(index);
+
+    music.stop();
     music.setQueue({ song: songId }).then(() => {
       music.play();
     });
@@ -135,6 +163,19 @@ export default function Bubble() {
   };
 
   const playPreview = (previewUrl) => {
+    if (!previewUrl) {
+      console.warn("No preview URL provided.");
+      return;
+    }
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.src = previewUrl;
+      audioRef.current.play();
+    }
+  };
+
+  const playControlPreview = (previewUrl) => {
     if (!previewUrl) {
       console.warn("No preview URL provided.");
       return;
@@ -296,10 +337,10 @@ export default function Bubble() {
             {queue.length === 0 ? (
               <p>No songs in queue</p>
             ) : (
-              queue.map((song) => (
+              queue.map((song, index) => (
                 <div
                   key={song.id}
-                  onClick={() => playSong(song.songId)}
+                  onClick={() => playSongAtIndex(index)}
                   style={{
                     position: "relative",
                     display: "flex",
@@ -353,7 +394,11 @@ export default function Bubble() {
               </p>
               <p>Requested by: {req.requestedBy}</p>
 
-              <audio controls src={req.previewUrl}></audio>
+              <audio
+                controls
+                src={req.previewUrl}
+                onPlay={() => playControlPreview(req.previewUrl)}
+              ></audio>
 
               <div style={{ marginTop: 8 }}>
                 <button
