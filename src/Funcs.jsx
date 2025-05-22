@@ -50,12 +50,12 @@ const Funcs = () => {
   const [lastDoc, setLastDoc] = useState(null);
 
   const sourceId = "12345";
-  const targetId = "54321";
+  const targetId = "user_6";
 
-  spaceId = "0ifF7IT7xHpjsBDG6Nmc";
-  memberId = "12345";
-  name = "sumit sharma";
-  profileUrl =
+  const spaceId = "0ifF7IT7xHpjsBDG6Nmc";
+  const memberId = "12345";
+  const name = "sumit sharma";
+  const profileUrl =
     "https://plus.unsplash.com/premium_photo-1689568126014-06fea9d5d341?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cHJvZmlsZXxlbnwwfHwwfHx8MA%3D%3D";
 
   const mood = "chill";
@@ -124,6 +124,9 @@ const Funcs = () => {
         activity,
         isBanned: false,
         photoUrl,
+        followersCount: 0,
+        followingsCount: 0, // You can change to 1 if needed
+        spacesCount: 0,
       };
 
       const userRef = doc(db, "users", uid);
@@ -151,13 +154,19 @@ const Funcs = () => {
   };
 
   const loadMoreSpaces = async (mood, activity) => {
-    const { spaces: moreSpaces, lastVisible } = await getSpacesPaginated(
-      mood,
-      activity,
-      lastDoc
-    );
+    const {
+      spaces: moreSpaces,
+      lastVisible,
+      hasMore,
+    } = await getSpacesPaginated(mood, activity, lastDoc);
+
     setSpaces((prev) => [...prev, ...moreSpaces]);
     setLastDoc(lastVisible);
+
+    if (!hasMore) {
+      alert("You've reached the end of the list.");
+      // Optionally: disable a "Load More" button or similar
+    }
   };
 
   const getSpacesPaginated = async (mood, activity, lastDoc = null) => {
@@ -173,21 +182,23 @@ const Funcs = () => {
       ];
 
       if (lastDoc) {
-        // Insert startAfter before limit
         conditions.splice(conditions.length - 1, 0, startAfter(lastDoc));
       }
 
       const spacesQuery = query(spacesRef, ...conditions);
-
       const snapshot = await getDocs(spacesQuery);
+
       const spaces = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      const lastVisible = snapshot.docs[snapshot.docs.length - 1];
 
-      console.log({ spaces, lastVisible });
-      return { spaces, lastVisible };
+      const lastVisible = snapshot.docs[snapshot.docs.length - 1] || null;
+
+      const hasMore = snapshot.docs.length === pageSize;
+
+      console.log(spaces);
+      return { spaces, lastVisible, hasMore };
     } catch (err) {
       console.error("Error paginating spaces:", err);
       throw err;
@@ -654,6 +665,39 @@ const Funcs = () => {
     }
   };
 
+  const getSpaceWithQueue = async (spaceId) => {
+    try {
+      // 1. Get the main space document
+      const spaceRef = doc(db, "spaces", spaceId);
+      const spaceSnap = await getDoc(spaceRef);
+
+      if (!spaceSnap.exists()) {
+        throw new Error(`Space with ID ${spaceId} does not exist`);
+      }
+
+      const spaceData = { id: spaceSnap.id, ...spaceSnap.data() };
+
+      // 2. Get the first document from the "queue" subcollection
+      const queueRef = collection(spaceRef, "queue");
+      const queueQuery = query(queueRef, orderBy("addedAt", "asc"));
+      const queueSnap = await getDocs(queueQuery);
+
+      const firstQueueDoc =
+        queueSnap.docs.length > 0
+          ? { id: queueSnap.docs[0].id, ...queueSnap.docs[0].data() }
+          : null;
+
+      console.log({ spaceData, firstQueueDoc });
+      return {
+        space: spaceData,
+        firstQueueItem: firstQueueDoc,
+      };
+    } catch (error) {
+      console.error("Error getting space with queue:", error);
+      throw error;
+    }
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -686,7 +730,7 @@ const Funcs = () => {
         <input type="file" onChange={handleFileChange} />
         <button
           onClick={() =>
-            createUser("12345", "sumit", "chill", "driving", imageFile)
+            createUser("user_5", "user 5", "nostalgic", "waiting", imageFile)
           }
         >
           Create user
@@ -696,13 +740,13 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Get bubbles based on mood and activity</h3>
         <button onClick={() => loadMoreSpaces(mood, activity)}>
-          Get bubbles
+          Load more spaces
         </button>
       </div>
       <div className="function-block">
         <h3>Get bubbles based on mood and activity</h3>
         <button onClick={() => refreshSpacesList(mood, activity)}>
-          Get bubbles
+          Refresh spaces
         </button>
       </div>
 
@@ -772,6 +816,11 @@ const Funcs = () => {
         <button onClick={() => getSpacesFromFollowings(spaceId, name)}>
           Get
         </button>
+      </div>
+
+      <div className="function-block">
+        <h3>Get Space Data</h3>
+        <button onClick={() => getSpaceWithQueue(spaceId)}>Get</button>
       </div>
 
       {/* <div className="function-block">
