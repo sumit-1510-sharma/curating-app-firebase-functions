@@ -677,20 +677,21 @@ const Funcs = () => {
 
       const spaceData = { id: spaceSnap.id, ...spaceSnap.data() };
 
-      // 2. Get the first document from the "queue" subcollection
+      // 2. Get all documents from the "queue" subcollection
       const queueRef = collection(spaceRef, "queue");
       const queueQuery = query(queueRef, orderBy("addedAt", "asc"));
       const queueSnap = await getDocs(queueQuery);
 
-      const firstQueueDoc =
-        queueSnap.docs.length > 0
-          ? { id: queueSnap.docs[0].id, ...queueSnap.docs[0].data() }
-          : null;
+      const queueItems = queueSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-      console.log({ spaceData, firstQueueDoc });
+      console.log({ spaceData, queueItems });
+
       return {
         space: spaceData,
-        firstQueueItem: firstQueueDoc,
+        queue: queueItems,
       };
     } catch (error) {
       console.error("Error getting space with queue:", error);

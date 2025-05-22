@@ -31,13 +31,13 @@ const Chatroom = ({ bubbleId, userId = "sumit_sharma" }) => {
   const sendMessage = async () => {
     if (!input.trim()) return;
 
-    const chatRef = collection(db, "bubbles", bubbleId, "chat");
+    const chatRef = collection(db, "spaces", bubbleId, "chat");
 
     setInput("");
 
     await addDoc(chatRef, {
       message: input,
-      username: userId,
+      userId: userId,
       time: serverTimestamp(),
     });
   };
