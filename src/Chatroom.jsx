@@ -6,6 +6,11 @@ import {
   orderBy,
   serverTimestamp,
   onSnapshot,
+  limit,
+  startAfter,
+  doc,
+  getDoc,
+  getDocs,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import "./Chatroom.css";
@@ -14,37 +19,96 @@ const Chatroom = ({ bubbleId, userId = "sumit_sharma" }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const messagesEndRef = useRef(null);
+  const gifUrl = "https://media.tenor.com/MBDpdI_PKwkAAAAC/music-bollywood.gif";
+  const MESSAGES_LIMIT = 5;
 
-  useEffect(() => {
-    if (!bubbleId) return;
+  const listenToRecentMessages = (spaceId, onUpdate) => {
+    const messagesRef = collection(db, "spaces", spaceId, "chat");
+    const q = query(
+      messagesRef,
+      orderBy("time", "desc"),
+      limit(MESSAGES_LIMIT)
+    );
 
-    const chatRef = collection(db, "bubbles", bubbleId, "chat");
-    const q = query(chatRef, orderBy("time", "asc"));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    return onSnapshot(q, (snapshot) => {
+      const messages = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      onUpdate(messages); // Call your UI setter with latest messages
     });
+  };
 
-    return () => unsubscribe();
-  }, [bubbleId]);
+  const fetchOlderMessages = async (spaceId, lastVisibleDoc) => {
+    const messagesRef = collection(db, "spaces", spaceId, "chat");
 
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+    const q = query(
+      messagesRef,
+      orderBy("time", "desc"),
+      startAfter(lastVisibleDoc),
+      limit(MESSAGES_LIMIT)
+    );
 
-    const chatRef = collection(db, "spaces", bubbleId, "chat");
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+  };
 
-    setInput("");
+  const getMessageDocById = async (spaceId, messageId) => {
+    const docRef = doc(db, "spaces", spaceId, "chat", messageId);
+    return await getDoc(docRef);
+  };
 
-    await addDoc(chatRef, {
-      message: input,
-      userId: userId,
+  const sendMessage = async (spaceId, userId, data, clearInputCallback) => {
+    if (data.type === "text" && !data.message.trim()) return;
+
+    const chatRef = collection(db, "spaces", spaceId, "chat");
+
+    if (data.type === "text" && typeof clearInputCallback === "function") {
+      clearInputCallback(); // clear input field (owptional)
+    }
+
+    const payload = {
+      userId,
       time: serverTimestamp(),
-    });
+      type: data.type,
+    };
+
+    if (data.type === "text") {
+      payload.message = data.message;
+    } else if (data.type === "gif") {
+      payload.gifUrl = data.gifUrl;
+    }
+
+    await addDoc(chatRef, payload);
   };
 
   const handleKeyPress = (e) => {
-    if (e.key === "Enter") sendMessage();
+    if (e.key === "Enter" && input.trim()) {
+      sendMessage(bubbleId, userId, { type: "text", message: input }, () =>
+        setInput("")
+      );
+    }
   };
+
+  const loadOlderMessages = async () => {
+    const lastDoc = await getMessageDocById(
+      bubbleId,
+      messages[messages.length - 1].id
+    );
+    const older = await fetchOlderMessages(bubbleId, lastDoc);
+    setMessages((prev) => [...prev, ...older]);
+  };
+
+  useEffect(() => {
+    const unsub = listenToRecentMessages(bubbleId, (messages) => {
+      setMessages(messages); // your state
+    });
+
+    return () => unsub(); // cleanup on unmount
+  }, [bubbleId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -63,7 +127,7 @@ const Chatroom = ({ bubbleId, userId = "sumit_sharma" }) => {
       <h3>{userId}</h3>
       <div
         style={{
-          height: 300,
+          height: 600,
           overflowY: "auto",
           marginBottom: 10,
           padding: 8,
@@ -71,9 +135,23 @@ const Chatroom = ({ bubbleId, userId = "sumit_sharma" }) => {
           borderRadius: 4,
         }}
       >
-        {messages.map((msg) => (
-          <div key={msg} style={{ marginBottom: 8, color: "black" }}>
-            <strong>{msg.username}:</strong> {msg.message}
+        {messages.map((msg, index) => (
+          <div key={index} style={{ marginBottom: 12, color: "black" }}>
+            <strong>{msg.username}:</strong>{" "}
+            {msg.type === "text" && <span>{msg.message}</span>}
+            {msg.type === "gif" && (
+              <div>
+                <img
+                  src={msg.gifUrl}
+                  alt="GIF"
+                  style={{
+                    maxWidth: "300px",
+                    maxHeight: "300px",
+                    borderRadius: 8,
+                  }}
+                />
+              </div>
+            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
@@ -85,8 +163,31 @@ const Chatroom = ({ bubbleId, userId = "sumit_sharma" }) => {
         onKeyDown={handleKeyPress}
         placeholder="Type your message..."
       />
-      <button onClick={sendMessage} style={{ width: "23%", marginLeft: "2%" }}>
-        Send
+      <button
+        onClick={() =>
+          sendMessage(bubbleId, userId, { type: "text", message: input }, () =>
+            setInput("")
+          )
+        }
+        style={{ width: "23%", marginLeft: "2%" }}
+      >
+        Send message
+      </button>
+
+      <button
+        onClick={() =>
+          sendMessage(bubbleId, userId, { type: "gif", gifUrl: gifUrl })
+        }
+        style={{ width: "23%", marginLeft: "2%" }}
+      >
+        Send gif
+      </button>
+
+      <button
+        onClick={() => loadOlderMessages()}
+        style={{ width: "23%", marginLeft: "2%" }}
+      >
+        Load previous messages
       </button>
     </div>
   );

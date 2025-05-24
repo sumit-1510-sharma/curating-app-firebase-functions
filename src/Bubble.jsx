@@ -200,12 +200,12 @@ export default function Bubble() {
     const previewUrl = song.attributes?.previews?.[0]?.url;
 
     await addDoc(requestRef, {
-      songId: song.id,
-      songTitle: title,
+      assetId: song.id,
+      assetName: title,
       artist: artist,
       coverUrl: artworkUrl,
       previewUrl: previewUrl,
-      photoUrl: user.photoURL,
+      profilePhotoUrl: user.photoUrl,
       requestedBy: user.name,
       addedAt: serverTimestamp(),
     });

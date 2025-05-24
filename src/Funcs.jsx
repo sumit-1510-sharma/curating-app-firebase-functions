@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./Funcs.css";
 import {
+  addDoc,
   collection,
   doc,
   getDoc,
@@ -47,7 +48,6 @@ const Funcs = () => {
   const [imageFile, setImageFile] = useState(null);
   const [result, setResult] = useState(null);
   const [spaces, setSpaces] = useState([]);
-  const [lastDoc, setLastDoc] = useState(null);
 
   const sourceId = "12345";
   const targetId = "user_6";
@@ -58,8 +58,30 @@ const Funcs = () => {
   const profileUrl =
     "https://plus.unsplash.com/premium_photo-1689568126014-06fea9d5d341?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cHJvZmlsZXxlbnwwfHwwfHx8MA%3D%3D";
 
+  const message = "Hello sumit";
+  const type = "text";
   const mood = "chill";
   const activity = "vibing";
+
+  const user = {
+    id: "user_3",
+    name: "user 3",
+    photoUrl:
+      "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fuser_2.jpg?alt=media&token=105849e1-2a31-4b43-9f36-2d2bca4b2126",
+  };
+
+  const song5 = {
+    id: "1650634434",
+    attributes: {
+      name: "Apna Bana Le",
+      artistName: "Arijit Singh",
+      artwork: {
+        url: "https://is1-ssl.mzstatic.com/image/thumb/Music122/v4/1d/0c/ed/1d0cedb5-4990-2f56-8f5b-142e6a7629a4/196589875100.jpg/{w}x{h}bb.jpg",
+      },
+      genreNames: ["Bollywood"],
+      releaseDate: "2022-11-17",
+    },
+  };
 
   const handleFileChange = (e) => {
     setImageFile(e.target.files[0]);
@@ -699,6 +721,179 @@ const Funcs = () => {
     }
   };
 
+  const addSongToQueue = async (spaceId, song, user) => {
+    try {
+      const spaceRef = doc(db, "spaces", spaceId);
+      const queueRef = collection(spaceRef, "queue");
+
+      const queueDoc = {
+        addedAt: serverTimestamp(),
+        addedById: user.id,
+        addedByName: user.name,
+        profileImageUrl: user.photoUrl || "",
+        assetId: song.id,
+        assetName: song.attributes.name,
+        artist: song.attributes.artistName,
+        coverUrl:
+          song.attributes.artwork?.url
+            ?.replace("{w}", "100")
+            ?.replace("{h}", "100") || "",
+        genre: song.attributes.genreNames?.[0] || "",
+        year: song.attributes.releaseDate?.split("-")[0] || "",
+      };
+
+      const docRef = await addDoc(queueRef, queueDoc);
+      console.log("Song added to queue with ID:", docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error("Error adding song to queue:", error);
+      throw error;
+    }
+  };
+
+  const fetchFollowersData = async (userId) => {
+    if (!userId) {
+      throw new Error("User ID is required.");
+    }
+
+    const followersRef = collection(db, `users/${userId}/followers`);
+
+    try {
+      const snapshot = await getDocs(followersRef);
+
+      const followerIds = snapshot.docs.map((doc) => doc.id);
+
+      const followerDataPromises = followerIds.map(async (id) => {
+        const userDoc = await getDoc(doc(db, "users", id));
+        return userDoc.exists() ? { id, ...userDoc.data() } : null;
+      });
+
+      const followersData = (await Promise.all(followerDataPromises)).filter(
+        Boolean
+      );
+
+      console.log(followersData);
+      return followersData;
+    } catch (error) {
+      console.error("Error fetching followers' data:", error);
+      throw error;
+    }
+  };
+
+  const fetchMembersFromSpace = async (spaceId) => {
+    if (!spaceId) {
+      throw new Error("Space ID is required.");
+    }
+
+    const membersRef = collection(db, `spaces/${spaceId}/members`);
+
+    try {
+      const snapshot = await getDocs(membersRef);
+      const members = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log(members);
+      return members;
+    } catch (error) {
+      console.error("Error fetching space members:", error);
+      throw error;
+    }
+  };
+
+  const sendMessageToSpace = async (
+    spaceId,
+    username,
+    photoUrl,
+    message,
+    type,
+    gifUrl = null
+  ) => {
+    console.log(spaceId, username, photoUrl, message, type);
+    if (!spaceId || !username || !photoUrl || !message || !type) {
+      throw new Error("Missing required fields to send a message.");
+    }
+
+    const chatRef = collection(db, `spaces/${spaceId}/chat`);
+
+    const messageData = {
+      addedByName: username,
+      profilePhotoUrl: photoUrl,
+      message,
+      type,
+      gifUrl: type === "gif" ? gifUrl : null,
+      addedAt: serverTimestamp(),
+    };
+
+    await addDoc(chatRef, messageData);
+  };
+
+  const [messages, setMessages] = useState([]);
+  const [lastDoc, setLastDoc] = useState(null);
+
+  const loadInitialMessages = async (spaceId) => {
+    if (!spaceId) throw new Error("Space ID is required.");
+
+    const chatRef = collection(db, `spaces/${spaceId}/chat`);
+    const q = query(chatRef, orderBy("addedAt", "desc"), limit(2));
+
+    const snapshot = await getDocs(q);
+
+    const messages = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    const lastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    return { messages, lastDoc };
+  };
+
+  const loadOlder = async () => {
+    if (!lastDoc) return;
+    const { messages: olderMessages, lastDoc: newLastDoc } =
+      await loadMoreMessages(spaceId, lastDoc);
+    setMessages((prev) => [...prev, ...olderMessages]);
+    setLastDoc(newLastDoc);
+  };
+
+  const loadMoreMessages = async (spaceId, lastVisibleDoc) => {
+    if (!spaceId || !lastVisibleDoc)
+      throw new Error("Space ID and lastVisibleDoc are required.");
+
+    const chatRef = collection(db, `spaces/${spaceId}/chat`);
+    const q = query(
+      chatRef,
+      orderBy("addedAt", "desc"),
+      startAfter(lastVisibleDoc),
+      limit(2)
+    );
+
+    const snapshot = await getDocs(q);
+
+    const messages = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    console.log(messages);
+
+    const newLastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
+
+    return { messages, lastDoc: newLastDoc };
+  };
+
+  useEffect(() => {
+    const fetchInitial = async () => {
+      const { messages, lastDoc } = await loadInitialMessages(spaceId);
+      console.log(messages);
+      setMessages(messages);
+      setLastDoc(lastDoc);
+    };
+
+    fetchInitial();
+  }, []);
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -822,6 +1017,39 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Get Space Data</h3>
         <button onClick={() => getSpaceWithQueue(spaceId)}>Get</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Add to queue</h3>
+        <button onClick={() => addSongToQueue(spaceId, song5, user)}>
+          Add
+        </button>
+      </div>
+
+      <div className="function-block">
+        <h3>Fetch followers's data</h3>
+        <button onClick={() => fetchFollowersData(sourceId)}>Fetch</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Fetch members</h3>
+        <button onClick={() => fetchMembersFromSpace(spaceId)}>Fetch</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Send messages</h3>
+        <button
+          onClick={() =>
+            sendMessageToSpace(spaceId, name, profileUrl, message, type)
+          }
+        >
+          Send
+        </button>
+      </div>
+
+      <div className="function-block">
+        <h3>Load more messages</h3>
+        <button onClick={() => loadOlder()}>Fetch</button>
       </div>
 
       {/* <div className="function-block">
