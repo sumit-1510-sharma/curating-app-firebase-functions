@@ -894,6 +894,53 @@ const Funcs = () => {
     fetchInitial();
   }, []);
 
+  const likeSpace = async (spaceId, userId) => {
+    if (!spaceId || !userId) {
+      throw new Error("spaceId and userId are required.");
+    }
+
+    const spaceRef = doc(db, "spaces", spaceId);
+    const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, userId);
+
+    await runTransaction(db, async (transaction) => {
+      const likeSnap = await transaction.get(likeRef);
+      if (likeSnap.exists()) {
+        throw new Error("User already liked this space.");
+      }
+
+      // Add userId to likedByIds subcollection
+      transaction.set(likeRef, { likedAt: new Date().toISOString() });
+    });
+  };
+
+  const unlikeSpace = async (spaceId, userId) => {
+    if (!spaceId || !userId) {
+      throw new Error("spaceId and userId are required.");
+    }
+
+    const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, userId);
+
+    await runTransaction(db, async (transaction) => {
+      const likeSnap = await transaction.get(likeRef);
+      if (!likeSnap.exists()) {
+        throw new Error("User hasn't liked this space.");
+      }
+
+      // Remove the user's like document
+      transaction.delete(likeRef);
+    });
+  };
+
+  const hasUserLikedSpace = async (spaceId, userId) => {
+    if (!spaceId || !userId) {
+      throw new Error("spaceId and userId are required.");
+    }
+
+    const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, userId);
+    const likeSnap = await getDoc(likeRef);
+    return likeSnap.exists();
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
