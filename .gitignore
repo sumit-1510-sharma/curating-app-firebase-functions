@@ -28,3 +28,7 @@ AuthKey_23KF9B8626.p8
 
 # generating jwt token from auth key file
 generate-token.cjs
+
+# firebase files
+firebase-messaging-sw.js
+firebase.js
