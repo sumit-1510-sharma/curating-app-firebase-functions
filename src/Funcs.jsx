@@ -18,7 +18,7 @@ import {
   where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
-import { db, storage } from "./firebase";
+import { db, messaging, storage } from "./firebase";
 
 // const queueInputs = {
 //   artist: "Taylor Swift",
@@ -60,7 +60,7 @@ const Funcs = () => {
 
   const message = "Hello sumit";
   const type = "text";
-  const mood = "chill";
+  const mood = "bored";
   const activity = "vibing";
 
   const user = {
@@ -368,10 +368,58 @@ const Funcs = () => {
     }
   };
 
-  const followUser = async (currentUserId, targetUserId) => {
-    if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
+  // const followUser = async (currentUserId, targetUserId) => {
+  //   if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
+  //     throw new Error("Invalid user IDs");
+  //   }
+
+  //   const currentUserRef = doc(db, `users/${currentUserId}`);
+  //   const targetUserRef = doc(db, `users/${targetUserId}`);
+
+  //   const followingRef = doc(
+  //     db,
+  //     `users/${currentUserId}/followings`,
+  //     targetUserId
+  //   );
+  //   const followerRef = doc(
+  //     db,
+  //     `users/${targetUserId}/followers`,
+  //     currentUserId
+  //   );
+
+  //   await runTransaction(db, async (transaction) => {
+  //     // Check if already following
+  //     const followingSnap = await transaction.get(followingRef);
+  //     if (followingSnap.exists()) {
+  //       throw new Error("Already following this user.");
+  //     }
+
+  //     // 1. Add to followings of current user
+  //     transaction.set(followingRef, {});
+
+  //     // 2. Add to followers of target user
+  //     transaction.set(followerRef, {});
+
+  //     // 3. Increment followingsCount for current user
+  //     transaction.update(currentUserRef, {
+  //       followingsCount: increment(1),
+  //     });
+
+  //     // 4. Increment followersCount for target user
+  //     transaction.update(targetUserRef, {
+  //       followersCount: increment(1),
+  //     });
+  //   });
+
+  //   console.log(`User ${currentUserId} followed ${targetUserId}`);
+  // };
+
+  const followUser = async (currentUser, targetUserId) => {
+    if (!currentUser?.id || !targetUserId || currentUser.id === targetUserId) {
       throw new Error("Invalid user IDs");
     }
+
+    const currentUserId = currentUser.id;
 
     const currentUserRef = doc(db, `users/${currentUserId}`);
     const targetUserRef = doc(db, `users/${targetUserId}`);
@@ -388,7 +436,6 @@ const Funcs = () => {
     );
 
     await runTransaction(db, async (transaction) => {
-      // Check if already following
       const followingSnap = await transaction.get(followingRef);
       if (followingSnap.exists()) {
         throw new Error("Already following this user.");
@@ -409,6 +456,21 @@ const Funcs = () => {
       transaction.update(targetUserRef, {
         followersCount: increment(1),
       });
+    });
+
+    // 5. Add notification to target user
+    const notificationRef = collection(
+      db,
+      "users",
+      targetUserId,
+      "notifications"
+    );
+    await addDoc(notificationRef, {
+      sentAt: serverTimestamp(),
+      sentById: currentUser.id,
+      sentByName: currentUser.name || "",
+      sentByPhotoUrl: currentUser.photoUrl || "",
+      type: "follow",
     });
 
     console.log(`User ${currentUserId} followed ${targetUserId}`);
@@ -564,13 +626,47 @@ const Funcs = () => {
     return docSnap.exists();
   };
 
-  const joinSpace = async (spaceId, memberId, name, profileUrl) => {
-    if (!spaceId || !memberId || !name || !profileUrl) {
+  // const joinSpace = async (spaceId, memberId, name, profileUrl) => {
+  //   if (!spaceId || !memberId || !name || !profileUrl) {
+  //     throw new Error("Missing required fields to join the space.");
+  //   }
+
+  //   const spaceRef = doc(db, "spaces", spaceId);
+  //   const memberRef = doc(spaceRef, "members", memberId);
+
+  //   await runTransaction(db, async (transaction) => {
+  //     const memberSnap = await transaction.get(memberRef);
+  //     if (memberSnap.exists()) {
+  //       throw new Error("User is already a member of this space.");
+  //     }
+
+  //     transaction.set(memberRef, {
+  //       memberId,
+  //       name,
+  //       profileUrl,
+  //       joinedAt: serverTimestamp(),
+  //       isHost: false,
+  //     });
+
+  //     // Optional: increment membersCount in the main space doc
+  //     transaction.update(spaceRef, {
+  //       membersCount: increment(1),
+  //     });
+  //   });
+
+  //   console.log(`User ${memberId} joined space ${spaceId}`);
+  // };
+
+  const joinSpace = async (spaceId, user) => {
+    if (!spaceId || !user?.id || !user.name || !user.photoUrl) {
       throw new Error("Missing required fields to join the space.");
     }
 
+    const memberId = user.id;
     const spaceRef = doc(db, "spaces", spaceId);
     const memberRef = doc(spaceRef, "members", memberId);
+
+    let spaceOwnerId = null;
 
     await runTransaction(db, async (transaction) => {
       const memberSnap = await transaction.get(memberRef);
@@ -578,21 +674,48 @@ const Funcs = () => {
         throw new Error("User is already a member of this space.");
       }
 
+      // Add member
       transaction.set(memberRef, {
         memberId,
-        name,
-        profileUrl,
+        name: user.name,
+        profileUrl: user.photoUrl,
         joinedAt: serverTimestamp(),
         isHost: false,
       });
 
-      // Optional: increment membersCount in the main space doc
+      // Increment members count
       transaction.update(spaceRef, {
         membersCount: increment(1),
       });
+
+      // Get space owner
+      const spaceSnap = await transaction.get(spaceRef);
+      const spaceData = spaceSnap.data();
+      spaceOwnerId = spaceData.hostId;
+
+      if (!spaceOwnerId) {
+        throw new Error("Space owner ID not found.");
+      }
     });
 
-    console.log(`User ${memberId} joined space ${spaceId}`);
+    // Don't notify if user joined their own space
+    if (spaceOwnerId !== user.id) {
+      const notificationRef = collection(
+        db,
+        "users",
+        spaceOwnerId,
+        "notifications"
+      );
+      await addDoc(notificationRef, {
+        sentAt: serverTimestamp(),
+        sentById: user.id,
+        sentByName: user.name,
+        sentByPhotoUrl: user.photoUrl,
+        type: "join",
+      });
+    }
+
+    console.log(`User ${user.id} joined space ${spaceId}`);
   };
 
   const leaveSpace = async (spaceId, memberId) => {
@@ -894,13 +1017,32 @@ const Funcs = () => {
     fetchInitial();
   }, []);
 
-  const likeSpace = async (spaceId, userId) => {
-    if (!spaceId || !userId) {
+  // const likeSpace = async (spaceId, userId) => {
+  //   if (!spaceId || !userId) {
+  //     throw new Error("spaceId and userId are required.");
+  //   }
+
+  //   const spaceRef = doc(db, "spaces", spaceId);
+  //   const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, userId);
+
+  //   await runTransaction(db, async (transaction) => {
+  //     const likeSnap = await transaction.get(likeRef);
+  //     if (likeSnap.exists()) {
+  //       throw new Error("User already liked this space.");
+  //     }
+
+  //     // Add userId to likedByIds subcollection
+  //     transaction.set(likeRef, { likedAt: new Date().toISOString() });
+  //   });
+  // };
+
+  const likeSpace = async (spaceId, user) => {
+    if (!spaceId || !user.id) {
       throw new Error("spaceId and userId are required.");
     }
 
     const spaceRef = doc(db, "spaces", spaceId);
-    const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, userId);
+    const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, user.id);
 
     await runTransaction(db, async (transaction) => {
       const likeSnap = await transaction.get(likeRef);
@@ -910,6 +1052,26 @@ const Funcs = () => {
 
       // Add userId to likedByIds subcollection
       transaction.set(likeRef, { likedAt: new Date().toISOString() });
+
+      // Get the space data to find the owner
+      const spaceSnap = await transaction.get(spaceRef);
+      if (!spaceSnap.exists()) {
+        throw new Error("Space does not exist.");
+      }
+
+      const spaceData = spaceSnap.data();
+      const hostId = spaceData.hostId;
+      if (!hostId || hostId === user.id) return; // No notification to self
+
+      // Prepare notification
+      const notificationRef = collection(db, "users", hostId, "notifications");
+      await addDoc(notificationRef, {
+        sentAt: serverTimestamp(),
+        sentById: user.id,
+        sentByName: user.name || "",
+        sentByPhotoUrl: user.photoUrl || "",
+        type: "like", // join // follow
+      });
     });
   };
 

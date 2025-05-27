@@ -189,7 +189,7 @@ export default function Bubble() {
   };
 
   const sendSongRequest = async (song, user) => {
-    const requestRef = collection(db, "bubbles", bubbleId, "requests");
+    const requestRef = collection(db, "spaces", bubbleId, "requests");
 
     const artworkUrl = song.attributes?.artwork?.url?.replace(
       "{w}x{h}",
@@ -205,6 +205,61 @@ export default function Bubble() {
       artist: artist,
       coverUrl: artworkUrl,
       previewUrl: previewUrl,
+      profilePhotoUrl: user.photoUrl,
+      requestedBy: user.name,
+      addedAt: serverTimestamp(),
+    });
+  };
+
+  const sendMovieRequest = async (movie, user) => {
+    const requestRef = collection(db, "spaces", bubbleId, "requests");
+
+    await addDoc(requestRef, {
+      assetId: movie.id.toString(),
+      assetName: movie.title,
+      coverUrl: movie.poster_path
+        ? `https://image.tmdb.org/t/p/w500${movie.poster_path}`
+        : "",
+      year: movie.release_date?.slice(0, 4) || "",
+      genre: movie.genre_ids || [],
+      previewUrl: null,
+      profilePhotoUrl: user.photoUrl,
+      requestedBy: user.name,
+      addedAt: serverTimestamp(),
+    });
+  };
+
+  const sendTVShowRequest = async (tvShow, user) => {
+    const requestRef = collection(db, "spaces", bubbleId, "requests");
+
+    await addDoc(requestRef, {
+      assetId: tvShow.id.toString(),
+      assetName: tvShow.name,
+      coverUrl: tvShow.poster_path
+        ? `https://image.tmdb.org/t/p/w500${tvShow.poster_path}`
+        : "",
+      year: tvShow.first_air_date?.slice(0, 4) || "",
+      genre: tvShow.genre_ids || [],
+      previewUrl: null,
+      profilePhotoUrl: user.photoUrl,
+      requestedBy: user.name,
+      addedAt: serverTimestamp(),
+    });
+  };
+
+  const sendBookRequest = async (book, user) => {
+    const requestRef = collection(db, "spaces", bubbleId, "requests");
+    const info = book.volumeInfo || {};
+
+    await addDoc(requestRef, {
+      assetId: book.id,
+      assetName: info.title || "",
+      artist: info.authors || [],
+      coverUrl:
+        info.imageLinks?.thumbnail?.replace("http://", "https://") || "",
+      year: info.publishedDate?.slice(0, 4) || "",
+      genre: info.categories || [],
+      previewUrl: null,
       profilePhotoUrl: user.photoUrl,
       requestedBy: user.name,
       addedAt: serverTimestamp(),

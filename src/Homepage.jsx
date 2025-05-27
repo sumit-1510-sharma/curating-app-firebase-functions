@@ -158,12 +158,20 @@ import "./Homepage.css";
 
 import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
 import { db } from "./firebase";
+import { onForegroundMessage, requestNotificationPermission } from "./fcm";
 
 const lobbyId = "Vx76JTACmWw6AmVinvol";
 
 function Homepage() {
   const [musicKitInstance, setMusicKitInstance] = useState(null);
   const [queue, setQueue] = useState([]);
+
+  useEffect(() => {
+    onForegroundMessage((payload) => {
+      console.log("Foreground message received:", payload);
+      // Show toast or update UI
+    });
+  }, []);
 
   useEffect(() => {
     const music = MusicKit.getInstance();
@@ -290,6 +298,10 @@ function Homepage() {
           <button onClick={() => playTrack(lobbyId)}>Play Track</button>
           <button onClick={() => setupAutoPlayNext(musicKitInstance, queue, 0)}>
             Autoplay & Start
+          </button>
+
+          <button onClick={() => requestNotificationPermission()}>
+            Request token
           </button>
 
           <div>
