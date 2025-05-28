@@ -48,6 +48,8 @@ const Funcs = () => {
   const [imageFile, setImageFile] = useState(null);
   const [result, setResult] = useState(null);
   const [spaces, setSpaces] = useState([]);
+  const [requestList, setRequestList] = useState([]);
+  const [notificationList, setNotificationList] = useState([]);
 
   const sourceId = "12345";
   const targetId = "user_6";
@@ -1103,6 +1105,150 @@ const Funcs = () => {
     return likeSnap.exists();
   };
 
+  // fetch requests
+
+  const listenToRequestsForSpace = (spaceId, onUpdate, onError) => {
+    try {
+      const requestsRef = collection(db, "spaces", spaceId, "requests");
+      const q = query(requestsRef, orderBy("addedAt", "desc"));
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const requests = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          console.log(requests);
+          onUpdate(requests);
+        },
+        (error) => {
+          console.error("Realtime listener error:", error);
+          if (onError) onError(error);
+        }
+      );
+
+      return unsubscribe; // Call this to stop listening
+    } catch (err) {
+      console.error("Failed to set up listener:", err);
+      if (onError) onError(err);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = listenToRequestsForSpace(
+      spaceId,
+      (requests) => {
+        setRequestList(requests); // update state
+      },
+      (error) => {
+        console.error("Listener failed:", error);
+      }
+    );
+
+    return () => unsubscribe(); // Clean up on unmount
+  }, [spaceId]);
+
+  // get user from userId
+
+  const getUserById = async (userId) => {
+    try {
+      const userRef = doc(db, "users", userId);
+      const userSnap = await getDoc(userRef);
+
+      if (userSnap.exists()) {
+        return { success: true, user: { id: userSnap.id, ...userSnap.data() } };
+      } else {
+        return { success: false, error: "User not found" };
+      }
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
+  // fetch notifications
+
+  const listenToUserNotifications = (userId, onUpdate, onError) => {
+    try {
+      const notificationsRef = collection(db, "users", userId, "notifications");
+      const q = query(notificationsRef, orderBy("sentAt", "desc"));
+
+      const unsubscribe = onSnapshot(
+        q,
+        (snapshot) => {
+          const notifications = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+          onUpdate(notifications);
+        },
+        (error) => {
+          console.error("Notification listener error:", error);
+          if (onError) onError(error);
+        }
+      );
+
+      return unsubscribe; // Call this to stop listening
+    } catch (err) {
+      console.error("Failed to set up notification listener:", err);
+      if (onError) onError(err);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const unsubscribe = listenToUserNotifications(
+      sourceId,
+      (notifications) => {
+        setNotificationList(notifications); // update state
+      },
+      (error) => {
+        console.error("Listener failed:", error);
+      }
+    );
+
+    return () => unsubscribe(); // Clean up on unmount
+  }, [sourceId]);
+
+  // search spaces
+
+  const searchSpacesByFields = async (searchTerm) => {
+    try {
+      const lowerTerm = searchTerm.toLowerCase();
+      const spacesRef = collection(db, "spaces");
+
+      // Queries for each field with exact match on field
+      const queries = [
+        query(spacesRef, where("mood", "==", lowerTerm)),
+        query(spacesRef, where("activity", "==", lowerTerm)),
+        query(spacesRef, where("bubbleTitle", "==", lowerTerm)),
+        query(spacesRef, where("hostName", "==", lowerTerm)),
+      ];
+
+      // Run all queries in parallel
+      const results = await Promise.all(queries.map(getDocs));
+
+      // Merge results removing duplicates by doc id
+      const seen = new Set();
+      const mergedResults = [];
+      results.forEach((snapshot) => {
+        snapshot.forEach((doc) => {
+          if (!seen.has(doc.id)) {
+            seen.add(doc.id);
+            mergedResults.push({ id: doc.id, ...doc.data() });
+          }
+        });
+      });
+
+      return { success: true, results: mergedResults };
+    } catch (error) {
+      console.error("Search error:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -1259,6 +1405,11 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Load more messages</h3>
         <button onClick={() => loadOlder()}>Fetch</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Search spaces by fields</h3>
+        <button onClick={() => searchSpacesByFields("chill")}>Fetch</button>
       </div>
 
       {/* <div className="function-block">
