@@ -4,6 +4,7 @@ import {
   addDoc,
   collection,
   doc,
+  endAt,
   getDoc,
   getDocs,
   increment,
@@ -15,6 +16,7 @@ import {
   serverTimestamp,
   setDoc,
   startAfter,
+  startAt,
   where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -1285,6 +1287,36 @@ const Funcs = () => {
     }
   };
 
+  const searchUsers = async (searchTerm) => {
+    if (!searchTerm) return [];
+
+    const usersRef = collection(db, "users");
+
+    const q = query(
+      usersRef,
+      orderBy("name"),
+      startAt(searchTerm),
+      endAt(searchTerm + "\uf8ff")
+    );
+
+    try {
+      const snapshot = await getDocs(q);
+      console.log(
+        snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }))
+      );
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      console.error("Error searching users:", error);
+      return [];
+    }
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -1446,6 +1478,11 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Search spaces by fields</h3>
         <button onClick={() => searchSpacesByFields("chill")}>Fetch</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Search users</h3>
+        <button onClick={() => searchUsers("user")}>Fetch</button>
       </div>
 
       {/* <div className="function-block">
