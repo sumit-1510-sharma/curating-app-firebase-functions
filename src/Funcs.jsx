@@ -54,7 +54,7 @@ const Funcs = () => {
   const [notificationList, setNotificationList] = useState([]);
 
   const sourceId = "12345";
-  const userId = "12345";
+  const userId = "user_1";
   const targetId = "user_6";
 
   const spaceId = "0ifF7IT7xHpjsBDG6Nmc";
@@ -398,6 +398,35 @@ const Funcs = () => {
     } catch (error) {
       console.error("Error creating space:", error);
       throw error;
+    }
+  };
+
+  const getUserSpaces = async (userId) => {
+    try {
+      // 1. Get the space IDs from user's subcollection
+      const userSpacesRef = collection(db, "users", userId, "spaces");
+      const userSpacesSnap = await getDocs(userSpacesRef);
+
+      // 2. For each space ID, get the full space document from the top-level "spaces" collection
+      const spaceDataPromises = userSpacesSnap.docs.map(async (docRef) => {
+        const spaceId = docRef.id;
+        const fullSpaceRef = doc(db, "spaces", spaceId);
+        const fullSpaceSnap = await getDoc(fullSpaceRef);
+
+        if (fullSpaceSnap.exists()) {
+          return { id: spaceId, ...fullSpaceSnap.data() };
+        } else {
+          return null;
+        }
+      });
+
+      // 3. Wait for all fetches and filter out any nulls
+      const spaceData = await Promise.all(spaceDataPromises);
+      console.log(spaceData);
+      return spaceData.filter((space) => space !== null);
+    } catch (error) {
+      console.error("Error fetching user spaces:", error);
+      return [];
     }
   };
 
@@ -1511,6 +1540,11 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Search users</h3>
         <button onClick={() => searchUserProfiles("user")}>Fetch</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Search users</h3>
+        <button onClick={() => getUserSpaces(userId)}>Fetch</button>
       </div>
 
       {/* <div className="function-block">
