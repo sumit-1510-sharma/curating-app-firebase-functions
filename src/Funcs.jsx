@@ -52,6 +52,7 @@ const Funcs = () => {
   const [notificationList, setNotificationList] = useState([]);
 
   const sourceId = "12345";
+  const userId = "12345";
   const targetId = "user_6";
 
   const spaceId = "0ifF7IT7xHpjsBDG6Nmc";
@@ -473,6 +474,7 @@ const Funcs = () => {
       sentByName: currentUser.name || "",
       sentByPhotoUrl: currentUser.photoUrl || "",
       type: "follow",
+      seen: false,
     });
 
     console.log(`User ${currentUserId} followed ${targetUserId}`);
@@ -714,6 +716,7 @@ const Funcs = () => {
         sentByName: user.name,
         sentByPhotoUrl: user.photoUrl,
         type: "join",
+        seen: false,
       });
     }
 
@@ -1073,6 +1076,7 @@ const Funcs = () => {
         sentByName: user.name || "",
         sentByPhotoUrl: user.photoUrl || "",
         type: "like", // join // follow
+        seen: false,
       });
     });
   };
@@ -1107,48 +1111,59 @@ const Funcs = () => {
 
   // fetch requests
 
-  const listenToRequestsForSpace = (spaceId, onUpdate, onError) => {
+  const [hasNewRequest, setHasNewRequest] = useState(false);
+
+  const getRequests = async (spaceId) => {
     try {
-      const requestsRef = collection(db, "spaces", spaceId, "requests");
-      const q = query(requestsRef, orderBy("addedAt", "desc"));
+      const reqRef = collection(db, "spaces", spaceId, "requests");
+      const q = query(reqRef, orderBy("addedAt", "desc"), limit(20));
+      const snapshot = await getDocs(q);
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const requests = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          console.log(requests);
-          onUpdate(requests);
-        },
-        (error) => {
-          console.error("Realtime listener error:", error);
-          if (onError) onError(error);
-        }
-      );
-
-      return unsubscribe; // Call this to stop listening
-    } catch (err) {
-      console.error("Failed to set up listener:", err);
-      if (onError) onError(err);
-      return null;
+      return snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      console.error("Error fetching requests:", error);
+      throw error;
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = listenToRequestsForSpace(
-      spaceId,
-      (requests) => {
-        setRequestList(requests); // update state
-      },
-      (error) => {
-        console.error("Listener failed:", error);
-      }
-    );
+  const listenToNewRequest = (spaceId, callback) => {
+    const reqRef = collection(db, "spaces", spaceId, "requests");
+    const q = query(reqRef, orderBy("addedAt", "desc"), limit(1));
 
-    return () => unsubscribe(); // Clean up on unmount
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const latest = snapshot.docs[0]?.data();
+      if (latest && !latest.seen) {
+        callback(true); // new unseen request
+      } else {
+        callback(false); // no new unseen request
+      }
+    });
+
+    return unsubscribe;
+  };
+
+  useEffect(() => {
+    if (!spaceId) return;
+
+    const unsubscribe = listenToNewRequest(spaceId, (isNew) => {
+      setHasNewRequest(isNew);
+    });
+
+    return () => unsubscribe(); // cleanup on unmount
   }, [spaceId]);
+
+  const markRequestAsSeen = async (spaceId, requestId) => {
+    try {
+      const reqRef = doc(db, "spaces", spaceId, "requests", requestId);
+      await updateDoc(reqRef, { seen: true });
+    } catch (error) {
+      console.error("Error marking request as seen:", error);
+      throw error;
+    }
+  };
 
   // get user from userId
 
@@ -1170,47 +1185,68 @@ const Funcs = () => {
 
   // fetch notifications
 
-  const listenToUserNotifications = (userId, onUpdate, onError) => {
+  const [hasNewNotification, setHasNewNotification] = useState(false);
+
+  const fetchUserNotifications = async (userId, limitCount = 20) => {
     try {
-      const notificationsRef = collection(db, "users", userId, "notifications");
-      const q = query(notificationsRef, orderBy("sentAt", "desc"));
+      const notifRef = collection(db, "users", userId, "notifications");
+      const q = query(notifRef, orderBy("sentAt", "desc"), limit(limitCount));
+      const snapshot = await getDocs(q);
 
-      const unsubscribe = onSnapshot(
-        q,
-        (snapshot) => {
-          const notifications = snapshot.docs.map((doc) => ({
-            id: doc.id,
-            ...doc.data(),
-          }));
-          onUpdate(notifications);
-        },
-        (error) => {
-          console.error("Notification listener error:", error);
-          if (onError) onError(error);
-        }
-      );
+      const notifications = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
 
-      return unsubscribe; // Call this to stop listening
-    } catch (err) {
-      console.error("Failed to set up notification listener:", err);
-      if (onError) onError(err);
-      return null;
+      return notifications;
+    } catch (error) {
+      console.error("Error fetching notifications:", error);
+      throw error;
     }
   };
 
-  useEffect(() => {
-    const unsubscribe = listenToUserNotifications(
-      sourceId,
-      (notifications) => {
-        setNotificationList(notifications); // update state
-      },
-      (error) => {
-        console.error("Listener failed:", error);
-      }
-    );
+  const listenToNewNotification = (userId, callback) => {
+    const notifRef = collection(db, "users", userId, "notifications");
+    const q = query(notifRef, orderBy("sentAt", "desc"), limit(1));
 
-    return () => unsubscribe(); // Clean up on unmount
-  }, [sourceId]);
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const latest = snapshot.docs[0]?.data();
+
+      if (latest && !latest.seen) {
+        callback(true); // New unseen notification
+      } else {
+        callback(false); // No new unseen notification
+      }
+    });
+
+    return unsubscribe;
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const unsubscribe = listenToNewNotification(userId, (isNew) => {
+      setHasNewNotification(isNew);
+    });
+
+    return () => unsubscribe(); // cleanup on unmount
+  }, [userId]);
+
+  const markNotificationAsSeen = async (userId, notificationId) => {
+    try {
+      const notifRef = doc(
+        db,
+        "users",
+        userId,
+        "notifications",
+        notificationId
+      );
+      await updateDoc(notifRef, { seen: true });
+    } catch (error) {
+      console.error("Failed to mark notification as seen:", error);
+      throw error;
+    }
+  };
 
   // search spaces
 
