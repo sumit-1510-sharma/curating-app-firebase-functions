@@ -167,6 +167,34 @@ const Funcs = () => {
     }
   };
 
+  const updateUserProfile = async (
+    userId,
+    { name, mood, activity }, // destructuring the updates object
+    newImageFile = null
+  ) => {
+    try {
+      const userRef = doc(db, "users", userId);
+      const updatedFields = {};
+
+      if (name !== undefined) updatedFields.name = name;
+      if (mood !== undefined) updatedFields.mood = mood;
+      if (activity !== undefined) updatedFields.activity = activity;
+
+      if (newImageFile) {
+        const imageRef = ref(storage, `userPhotos/${uid}.jpg`);
+        await uploadBytes(imageRef, newImageFile);
+        const newPhotoUrl = await getDownloadURL(imageRef);
+        updatedFields.photoUrl = newPhotoUrl;
+      }
+
+      await updateDoc(userRef, updatedFields);
+      return { success: true };
+    } catch (error) {
+      console.error("Error updating user profile:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   useEffect(() => {
     loadInitialSpaces(mood, activity);
   }, []);
@@ -1287,7 +1315,7 @@ const Funcs = () => {
     }
   };
 
-  const searchUsers = async (searchTerm) => {
+  const searchUserProfiles = async (searchTerm) => {
     if (!searchTerm) return [];
 
     const usersRef = collection(db, "users");
@@ -1482,7 +1510,7 @@ const Funcs = () => {
 
       <div className="function-block">
         <h3>Search users</h3>
-        <button onClick={() => searchUsers("user")}>Fetch</button>
+        <button onClick={() => searchUserProfiles("user")}>Fetch</button>
       </div>
 
       {/* <div className="function-block">
