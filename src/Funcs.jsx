@@ -675,6 +675,34 @@ const Funcs = () => {
     console.log(`User ${currentUserId} unblocked ${targetUserId}`);
   };
 
+  const getBlockedUsers = async (userId) => {
+    try {
+      const blockedRef = collection(db, "users", userId, "blockedByIds");
+      const snapshot = await getDocs(blockedRef);
+
+      const blockedUserIds = snapshot.docs.map((doc) => doc.id);
+
+      const blockedUsers = [];
+
+      for (const blockedId of blockedUserIds) {
+        const userDocRef = doc(db, "users", blockedId);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          blockedUsers.push({
+            id: userDocSnap.id,
+            ...userDocSnap.data(),
+          });
+        }
+      }
+
+      return blockedUsers;
+    } catch (error) {
+      console.error("Error fetching blocked users:", error);
+      throw error;
+    }
+  };
+
   const hasBlocked = async (currentUserId, targetUserId) => {
     if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
       return false;
