@@ -135,8 +135,10 @@ const Funcs = () => {
 
   const createUser = async (uid, name, mood, activity, imageFile = null) => {
     try {
+      // const defaultPhotoUrl =
+      //   "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d38231ee-ef01-46bd-86e7-7b3e76df3d16";
       const defaultPhotoUrl =
-        "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d38231ee-ef01-46bd-86e7-7b3e76df3d16";
+        "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15";
       let photoUrl = defaultPhotoUrl;
 
       if (imageFile) {
@@ -169,7 +171,11 @@ const Funcs = () => {
 
   const updateUserProfile = async (
     userId,
-    { name, mood, activity }, // destructuring the updates object
+    name,
+    mood,
+    activity,
+    about,
+    link,
     newImageFile = null
   ) => {
     try {
@@ -179,16 +185,25 @@ const Funcs = () => {
       if (name !== undefined) updatedFields.name = name;
       if (mood !== undefined) updatedFields.mood = mood;
       if (activity !== undefined) updatedFields.activity = activity;
+      if (about !== undefined) updatedFields.about = about;
+      if (link !== undefined) updatedFields.link = link;
 
       if (newImageFile) {
-        const imageRef = ref(storage, `userPhotos/${uid}.jpg`);
+        const imageRef = ref(storage, `userPhotos/${userId}.jpg`);
         await uploadBytes(imageRef, newImageFile);
         const newPhotoUrl = await getDownloadURL(imageRef);
         updatedFields.photoUrl = newPhotoUrl;
       }
 
       await updateDoc(userRef, updatedFields);
-      return { success: true };
+
+      // Fetch the updated user doc
+      const userSnap = await getDoc(userRef);
+      if (!userSnap.exists()) {
+        throw new Error("User not found after update");
+      }
+
+      return { success: true, user: { id: userSnap.id, ...userSnap.data() } };
     } catch (error) {
       console.error("Error updating user profile:", error);
       return { success: false, error: error.message };
@@ -360,6 +375,7 @@ const Funcs = () => {
         assetName: queueInputs.assetName || null,
         coverUrl: queueInputs.coverUrl || coverUrl,
         genre: queueInputs.genre || null,
+        previewUrl: queueInputs.previewUrl || null,
         profileImageUrl,
         year: queueInputs.year || null,
       };
@@ -812,14 +828,33 @@ const Funcs = () => {
     console.log(`User ${memberId} left space ${spaceId}`);
   };
 
+  // const isMemberOfSpace = async (spaceId, memberId) => {
+  //   if (!spaceId || !memberId) {
+  //     return false;
+  //   }
+
+  //   const memberRef = doc(db, `spaces/${spaceId}/members`, memberId);
+  //   const memberSnap = await getDoc(memberRef);
+  //   return memberSnap.exists();
+  // };
+
   const isMemberOfSpace = async (spaceId, memberId) => {
     if (!spaceId || !memberId) {
-      return false;
+      return { isMember: false, isHost: false };
     }
 
     const memberRef = doc(db, `spaces/${spaceId}/members`, memberId);
     const memberSnap = await getDoc(memberRef);
-    return memberSnap.exists();
+
+    if (!memberSnap.exists()) {
+      return { isMember: false, isHost: false };
+    }
+
+    const data = memberSnap.data();
+    return {
+      isMember: true,
+      isHost: !!data.isHost,
+    };
   };
 
   const getSpacesFromFollowings = async (userId) => {
@@ -1244,38 +1279,19 @@ const Funcs = () => {
 
   // fetch notifications
 
-  const [hasNewNotification, setHasNewNotification] = useState(false);
+  const [notifications, setNotifications] = useState([]);
 
-  const fetchUserNotifications = async (userId, limitCount = 20) => {
-    try {
-      const notifRef = collection(db, "users", userId, "notifications");
-      const q = query(notifRef, orderBy("sentAt", "desc"), limit(limitCount));
-      const snapshot = await getDocs(q);
+  const listenToNotifications = (userId, callback) => {
+    const notificationsRef = collection(db, "users", userId, "notifications");
+    const q = query(notificationsRef, orderBy("addedAt", "desc"));
 
+    const unsubscribe = onSnapshot(q, (snapshot) => {
       const notifications = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-
-      return notifications;
-    } catch (error) {
-      console.error("Error fetching notifications:", error);
-      throw error;
-    }
-  };
-
-  const listenToNewNotification = (userId, callback) => {
-    const notifRef = collection(db, "users", userId, "notifications");
-    const q = query(notifRef, orderBy("sentAt", "desc"), limit(1));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const latest = snapshot.docs[0]?.data();
-
-      if (latest && !latest.seen) {
-        callback(true); // New unseen notification
-      } else {
-        callback(false); // No new unseen notification
-      }
+      console.log(notifications);
+      callback(notifications);
     });
 
     return unsubscribe;
@@ -1284,28 +1300,12 @@ const Funcs = () => {
   useEffect(() => {
     if (!userId) return;
 
-    const unsubscribe = listenToNewNotification(userId, (isNew) => {
-      setHasNewNotification(isNew);
+    const unsubscribe = listenToNotifications(userId, (notifications) => {
+      setNotifications(notifications);
     });
 
-    return () => unsubscribe(); // cleanup on unmount
+    return () => unsubscribe(); // Cleanup on unmount
   }, [userId]);
-
-  const markNotificationAsSeen = async (userId, notificationId) => {
-    try {
-      const notifRef = doc(
-        db,
-        "users",
-        userId,
-        "notifications",
-        notificationId
-      );
-      await updateDoc(notifRef, { seen: true });
-    } catch (error) {
-      console.error("Failed to mark notification as seen:", error);
-      throw error;
-    }
-  };
 
   // search spaces
 
@@ -1384,15 +1384,26 @@ const Funcs = () => {
         <button
           onClick={() =>
             createSpace(
-              "avoiding responsibilities",
-              "Pride and Prejudice Pause",
-              "book",
+              "trying to sleep",
+              "Electric dreams before the night",
+              "music",
               imageFile,
-              "Indulge in classic romance and witty banter instead of chores.",
-              "uid_book_06",
-              "Snehal Joshi",
-              "https://example.com/profiles/snehal.jpg",
-              "romantic"
+              "A vibrant soundtrack to energize your mind even as you wind down.",
+              "v15o3rit7nNPTiTQHW0u08ThEx42",
+              "Dipin Chopra",
+              "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
+              "hyped",
+              {
+                artist: "M83",
+                assetId: "828259377",
+                assetName: "Midnight City",
+                coverUrl:
+                  "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/4c/14/8d/4c148df0-9532-15b7-91c9-570bfb20531a/724596951057.jpg/100x100bb.jpg",
+                previewUrl:
+                  "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/71/5c/80/715c80fc-ebe4-e713-487c-5bdefee6c6f3/mzaf_3698387428135478316.plus.aac.p.m4a",
+                profileImageUrl:
+                  "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
+              }
             )
           }
         >
@@ -1406,7 +1417,13 @@ const Funcs = () => {
         <input type="file" onChange={handleFileChange} />
         <button
           onClick={() =>
-            createUser("user_5", "user 5", "nostalgic", "waiting", imageFile)
+            createUser(
+              "v15o3rit7nNPTiTQHW0u08ThEx42",
+              "Dipin Chopra",
+              "chill",
+              "waiting",
+              imageFile
+            )
           }
         >
           Create user
