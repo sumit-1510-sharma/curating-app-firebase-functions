@@ -128,40 +128,6 @@ export default function Bubble() {
     });
   };
 
-  const approveRequest = async (requestId, request) => {
-    try {
-      const queueRef = collection(db, "bubbles", bubbleId, "queue");
-
-      await addDoc(queueRef, {
-        songId: request.songId,
-        songTitle: request.songTitle,
-        artist: request.artist,
-        previewUrl: request.previewUrl,
-        coverUrl: request.coverUrl || "",
-        addedBy: request.requestedBy || "Anonymous",
-        photoUrl: request.photoUrl || "",
-      });
-
-      // Optionally, delete the request after approval
-      const requestRef = doc(db, "bubbles", bubbleId, "requests", requestId);
-      await deleteDoc(requestRef);
-
-      console.log("Request approved and added to queue");
-    } catch (err) {
-      console.error("Error approving request:", err);
-    }
-  };
-
-  const rejectRequest = async (requestId) => {
-    try {
-      const requestRef = doc(db, "bubbles", bubbleId, "requests", requestId);
-      await deleteDoc(requestRef);
-      console.log("Request rejected and deleted");
-    } catch (err) {
-      console.error("Error rejecting request:", err);
-    }
-  };
-
   const playPreview = (previewUrl) => {
     if (!previewUrl) {
       console.warn("No preview URL provided.");
@@ -264,6 +230,40 @@ export default function Bubble() {
       requestedBy: user.name,
       addedAt: serverTimestamp(),
     });
+  };
+
+  const acceptRequest = async (
+    spaceId,
+    requestId,
+    requestData,
+    hostId,
+    hostName,
+    profileImageUrl
+  ) => {
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+    const requestRef = doc(db, "spaces", spaceId, "requests", requestId);
+
+    const queueData = {
+      addedAt: serverTimestamp(),
+      addedById: hostId,
+      addedByName: hostName,
+      artist: requestData.artist || null,
+      assetId: requestData.assetId || null,
+      assetName: requestData.assetName || null,
+      coverUrl: requestData.coverUrl || null,
+      genre: requestData.genre || null,
+      previewUrl: requestData.previewUrl || null,
+      profileImageUrl,
+      year: requestData.year || null,
+    };
+
+    await addDoc(queueRef, queueData);
+    await deleteDoc(requestRef);
+  };
+
+  const rejectRequest = async (spaceId, requestId) => {
+    const requestRef = doc(db, "spaces", spaceId, "requests", requestId);
+    await deleteDoc(requestRef);
   };
 
   useEffect(() => {
