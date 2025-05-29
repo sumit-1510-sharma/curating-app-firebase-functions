@@ -169,6 +169,28 @@ const Funcs = () => {
     }
   };
 
+  const deleteUserAccount = async (uid) => {
+    try {
+      // 1. Delete the profile image from storage
+      const imageRef = ref(storage, `userPhotos/${uid}.jpg`);
+      await deleteObject(imageRef).catch((error) => {
+        // If the image doesn't exist, suppress the error
+        if (error.code !== "storage/object-not-found") {
+          throw error;
+        }
+      });
+
+      // 2. Delete the user document from Firestore
+      const userRef = doc(db, "users", uid);
+      await deleteDoc(userRef);
+
+      console.log(`User ${uid} deleted successfully.`);
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      throw error;
+    }
+  };
+
   const updateUserProfile = async (
     userId,
     name,
