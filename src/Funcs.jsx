@@ -790,6 +790,9 @@ const Funcs = () => {
         sentById: user.id,
         sentByName: user.name,
         sentByPhotoUrl: user.photoUrl,
+        spaceId: spaceId,
+        spaceTitle: spaceData.bubbleTitle,
+        spaceCat: spaceData.category,
         type: "join",
         seen: false,
       });
@@ -1169,6 +1172,9 @@ const Funcs = () => {
         sentById: user.id,
         sentByName: user.name || "",
         sentByPhotoUrl: user.photoUrl || "",
+        spaceId: spaceId,
+        spaceTitle: spaceData.bubbleTitle,
+        spaceCat: spaceData.category,
         type: "like", // join // follow
         seen: false,
       });
@@ -1311,21 +1317,31 @@ const Funcs = () => {
 
   const searchSpacesByFields = async (searchTerm) => {
     try {
-      const lowerTerm = searchTerm.toLowerCase();
       const spacesRef = collection(db, "spaces");
 
-      // Queries for each field with exact match on field
-      const queries = [
-        query(spacesRef, where("mood", "==", lowerTerm)),
-        query(spacesRef, where("activity", "==", lowerTerm)),
-        query(spacesRef, where("bubbleTitle", "==", lowerTerm)),
-        query(spacesRef, where("hostName", "==", lowerTerm)),
-      ];
+      // Generate different case formats
+      const lower = searchTerm.toLowerCase();
+      const upper = searchTerm.toUpperCase();
+      const title =
+        searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1).toLowerCase();
+      const sentence =
+        searchTerm[0].toUpperCase() + searchTerm.slice(1).toLowerCase(); // Same as title for single word
 
-      // Run all queries in parallel
+      const variants = [lower, upper, title, sentence];
+
+      const fields = ["mood", "activity", "category", "hostName"];
+
+      // Create a query for each field-case combination
+      const queries = [];
+      for (const field of fields) {
+        for (const variant of variants) {
+          queries.push(query(spacesRef, where(field, "==", variant)));
+        }
+      }
+
       const results = await Promise.all(queries.map(getDocs));
 
-      // Merge results removing duplicates by doc id
+      // Merge results and remove duplicates
       const seen = new Set();
       const mergedResults = [];
       results.forEach((snapshot) => {
@@ -1336,6 +1352,8 @@ const Funcs = () => {
           }
         });
       });
+
+      console.log(mergedResults);
 
       return { success: true, results: mergedResults };
     } catch (error) {
@@ -1349,25 +1367,38 @@ const Funcs = () => {
 
     const usersRef = collection(db, "users");
 
-    const q = query(
-      usersRef,
-      orderBy("name"),
-      startAt(searchTerm),
-      endAt(searchTerm + "\uf8ff")
+    // Generate different case formats
+    const lower = searchTerm.toLowerCase();
+    const upper = searchTerm.toUpperCase();
+    const title =
+      searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1).toLowerCase();
+    const sentence =
+      searchTerm[0].toUpperCase() + searchTerm.slice(1).toLowerCase(); // Same as title for single word
+
+    const variants = [lower, upper, title, sentence];
+
+    // Create queries for each case variant
+    const queries = variants.map((term) =>
+      query(usersRef, orderBy("name"), startAt(term), endAt(term + "\uf8ff"))
     );
 
     try {
-      const snapshot = await getDocs(q);
-      console.log(
-        snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }))
-      );
-      return snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const results = await Promise.all(queries.map(getDocs));
+
+      // Merge results and remove duplicates
+      const seen = new Set();
+      const mergedResults = [];
+      results.forEach((snapshot) => {
+        snapshot.forEach((doc) => {
+          if (!seen.has(doc.id)) {
+            seen.add(doc.id);
+            mergedResults.push({ id: doc.id, ...doc.data() });
+          }
+        });
+      });
+
+      console.log(mergedResults);
+      return mergedResults;
     } catch (error) {
       console.error("Error searching users:", error);
       return [];
@@ -1384,23 +1415,23 @@ const Funcs = () => {
         <button
           onClick={() =>
             createSpace(
-              "trying to sleep",
-              "Electric dreams before the night",
+              "working",
+              "Power through your tasks with unstoppable energy",
               "music",
               imageFile,
-              "A vibrant soundtrack to energize your mind even as you wind down.",
+              "Locked in and laser-focused, this anthem fuels your hustle and keeps you in beast mode.",
               "v15o3rit7nNPTiTQHW0u08ThEx42",
               "Dipin Chopra",
               "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
               "hyped",
               {
-                artist: "M83",
-                assetId: "828259377",
-                assetName: "Midnight City",
+                artist: "David Guetta",
+                assetId: "693226464",
+                assetName: "Titanium (feat. Sia)",
                 coverUrl:
-                  "https://is1-ssl.mzstatic.com/image/thumb/Music126/v4/4c/14/8d/4c148df0-9532-15b7-91c9-570bfb20531a/724596951057.jpg/100x100bb.jpg",
+                  "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/99/b4/7b/99b47bd8-2b22-e1ef-2e60-c5147f27a861/dj.thrvmjqj.jpg/100x100bb.jpg",
                 previewUrl:
-                  "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/71/5c/80/715c80fc-ebe4-e713-487c-5bdefee6c6f3/mzaf_3698387428135478316.plus.aac.p.m4a",
+                  "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview122/v4/31/cd/6b/31cd6b1d-f6e9-3a87-9156-fd87a54458ed/mzaf_16813673358292342157.plus.aac.p.m4a",
                 profileImageUrl:
                   "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
               }
@@ -1551,16 +1582,16 @@ const Funcs = () => {
 
       <div className="function-block">
         <h3>Search spaces by fields</h3>
-        <button onClick={() => searchSpacesByFields("chill")}>Fetch</button>
+        <button onClick={() => searchSpacesByFields("music")}>Fetch</button>
       </div>
 
       <div className="function-block">
         <h3>Search users</h3>
-        <button onClick={() => searchUserProfiles("user")}>Fetch</button>
+        <button onClick={() => searchUserProfiles("dipin")}>Fetch</button>
       </div>
 
       <div className="function-block">
-        <h3>Search users</h3>
+        <h3>Search spaces</h3>
         <button onClick={() => getUserSpaces(userId)}>Fetch</button>
       </div>
 
