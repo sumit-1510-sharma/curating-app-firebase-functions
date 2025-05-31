@@ -795,15 +795,27 @@ const Funcs = () => {
     const spaceRef = doc(db, "spaces", spaceId);
     const memberRef = doc(spaceRef, "members", memberId);
 
-    let spaceOwnerId = null;
+    // ✅ Step 1: Pre-fetch space data
+    const spaceSnap = await getDoc(spaceRef);
+    if (!spaceSnap.exists()) {
+      throw new Error("Space not found.");
+    }
 
+    const spaceData = spaceSnap.data();
+    const spaceOwnerId = spaceData?.hostId;
+
+    if (!spaceOwnerId) {
+      throw new Error("Space owner ID not found.");
+    }
+
+    // ✅ Step 2: Transaction to safely join the space
     await runTransaction(db, async (transaction) => {
       const memberSnap = await transaction.get(memberRef);
       if (memberSnap.exists()) {
         throw new Error("User is already a member of this space.");
       }
 
-      // Add member
+      // Set member document
       transaction.set(memberRef, {
         memberId,
         name: user.name,
@@ -816,18 +828,9 @@ const Funcs = () => {
       transaction.update(spaceRef, {
         membersCount: increment(1),
       });
-
-      // Get space owner
-      const spaceSnap = await transaction.get(spaceRef);
-      const spaceData = spaceSnap.data();
-      spaceOwnerId = spaceData.hostId;
-
-      if (!spaceOwnerId) {
-        throw new Error("Space owner ID not found.");
-      }
     });
 
-    // Don't notify if user joined their own space
+    // ✅ Step 3: Notify space owner (if the user isn’t the owner)
     if (spaceOwnerId !== user.id) {
       const notificationRef = collection(
         db,
@@ -840,9 +843,9 @@ const Funcs = () => {
         sentById: user.id,
         sentByName: user.name,
         sentByPhotoUrl: user.photoUrl,
-        spaceId: spaceId,
-        spaceTitle: spaceData.bubbleTitle,
-        spaceCat: spaceData.category,
+        spaceId,
+        spaceTitle: spaceData?.bubbleTitle || "",
+        spaceCat: spaceData?.category || "",
         type: "join",
         seen: false,
       });
@@ -1455,6 +1458,37 @@ const Funcs = () => {
     }
   };
 
+  const fetchRandomSpaces = async () => {
+    const spacesRef = collection(db, "spaces");
+
+    // Step 1: Fetch first 20 doc IDs ordered by doc ID
+    const first20Query = query(spacesRef, orderBy("__name__"), limit(20));
+    const first20Snapshot = await getDocs(first20Query);
+
+    if (first20Snapshot.empty) return [];
+
+    // Step 2: Extract all doc IDs
+    const docIds = first20Snapshot.docs.map((doc) => doc.id);
+
+    // Step 3: Pick random doc ID
+    const randomIndex = Math.floor(Math.random() * docIds.length);
+    const randomDocId = docIds[randomIndex];
+
+    // Step 4: Fetch 10 docs starting at randomDocId
+    const randomStartQuery = query(
+      spacesRef,
+      orderBy("__name__"),
+      startAt(randomDocId),
+      limit(10)
+    );
+
+    const snapshot = await getDocs(randomStartQuery);
+
+    if (snapshot.empty) return [];
+
+    return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  };
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
@@ -1465,23 +1499,22 @@ const Funcs = () => {
         <button
           onClick={() =>
             createSpace(
-              "working",
-              "Power through your tasks with unstoppable energy",
-              "music",
+              "vibing",
+              "Lose yourself in magical tales and quiet moments with this one.",
+              "book",
               imageFile,
-              "Locked in and laser-focused, this anthem fuels your hustle and keeps you in beast mode.",
-              "v15o3rit7nNPTiTQHW0u08ThEx42",
-              "Dipin Chopra",
+              "A spellbinding story to get lost in when you just want to unwind and drift away.",
+              "tpylN8E6nAZtbvILAx14r0qb6ZA2",
+              "Vipin",
               "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
-              "hyped",
+              "chill",
               {
-                artist: "David Guetta",
-                assetId: "693226464",
-                assetName: "Titanium (feat. Sia)",
+                assetId: "GwAWS6C33O4C",
+                assetName: "The Night Circus",
                 coverUrl:
-                  "https://is1-ssl.mzstatic.com/image/thumb/Music114/v4/99/b4/7b/99b47bd8-2b22-e1ef-2e60-c5147f27a861/dj.thrvmjqj.jpg/100x100bb.jpg",
-                previewUrl:
-                  "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview122/v4/31/cd/6b/31cd6b1d-f6e9-3a87-9156-fd87a54458ed/mzaf_16813673358292342157.plus.aac.p.m4a",
+                  "http://books.google.com/books/content?id=GwAWS6C33O4C&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
+                genre: ["Fiction"],
+                year: 2011,
                 profileImageUrl:
                   "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
               }
@@ -1582,7 +1615,7 @@ const Funcs = () => {
 
       <div className="function-block">
         <h3>Join Space</h3>
-        <button onClick={() => joinSpace()}>join</button>
+        <button onClick={() => joinSpace(spaceId, user)}>join</button>
       </div>
 
       <div className="function-block">
@@ -1645,6 +1678,10 @@ const Funcs = () => {
         <button onClick={() => getUserSpaces(userId)}>Fetch</button>
       </div>
 
+      <div className="function-block">
+        <h3>Search spaces</h3>
+        <button onClick={() => fetchRandomSpaces()}>Fetch</button>
+      </div>
       {/* <div className="function-block">
         <h3>Update User Profile</h3>
         <input

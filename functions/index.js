@@ -46,7 +46,8 @@ exports.sendSpaceLikeNotification = onDocumentCreated(
     const username = userSnap.data()?.name || "Someone";
     const ownerId = space?.hostId;
 
-    if (!ownerId) return;
+    // Don't send notification if host likes their own space
+    if (!ownerId || userId === ownerId) return;
 
     const ownerSnap = await db.doc(`users/${ownerId}`).get();
     const token = ownerSnap.data()?.fcmToken;
@@ -76,7 +77,10 @@ exports.sendSpaceJoinNotification = onDocumentCreated(
     const username = userSnap.data()?.name || "Someone";
     const ownerId = space?.hostId;
 
-    if (!ownerId) return;
+    if (!ownerId || userId === ownerId) {
+      // Don't send notification if the added member is the host
+      return;
+    }
 
     const ownerSnap = await db.doc(`users/${ownerId}`).get();
     const token = ownerSnap.data()?.fcmToken;
@@ -106,7 +110,10 @@ exports.sendSpaceRequestNotification = onDocumentCreated(
     const requesterName = requestSnap.data()?.name || "Someone";
     const ownerId = space?.hostId;
 
-    if (!ownerId) return;
+    if (!ownerId || userId === ownerId) {
+      // Don't send notification if the added member is the host
+      return;
+    }
 
     const ownerSnap = await db.doc(`users/${ownerId}`).get();
     const token = ownerSnap.data()?.fcmToken;

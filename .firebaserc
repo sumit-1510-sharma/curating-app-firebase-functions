@@ -1,5 +1,9 @@
 {
   "projects": {
-    "default": "curating-app-1bb19"
-  }
+    "default": "curating-app-1bb19",
+    "prod": "plugged-prod-b6586",
+    "production": "plugged-prod-b6586"
+  },
+  "targets": {},
+  "etags": {}
 }

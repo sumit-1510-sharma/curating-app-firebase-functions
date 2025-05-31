@@ -172,7 +172,8 @@ export default function Bubble() {
       coverUrl: artworkUrl,
       previewUrl: previewUrl,
       profilePhotoUrl: user.photoUrl,
-      requestedBy: user.name,
+      requestedByName: user.name,
+      requesteById: user.id,
       addedAt: serverTimestamp(),
     });
   };
@@ -190,7 +191,8 @@ export default function Bubble() {
       genre: movie.genre_ids || [],
       previewUrl: null,
       profilePhotoUrl: user.photoUrl,
-      requestedBy: user.name,
+      requestedByName: user.name,
+      requesteById: user.id,
       addedAt: serverTimestamp(),
     });
   };
@@ -208,7 +210,8 @@ export default function Bubble() {
       genre: tvShow.genre_ids || [],
       previewUrl: null,
       profilePhotoUrl: user.photoUrl,
-      requestedBy: user.name,
+      requestedByName: user.name,
+      requesteById: user.id,
       addedAt: serverTimestamp(),
     });
   };
@@ -227,33 +230,64 @@ export default function Bubble() {
       genre: info.categories || [],
       previewUrl: null,
       profilePhotoUrl: user.photoUrl,
-      requestedBy: user.name,
+      requestedByName: user.name,
+      requestedById: user.id,
       addedAt: serverTimestamp(),
     });
   };
 
-  const acceptRequest = async (
-    spaceId,
-    requestId,
-    requestData,
-    hostId,
-    hostName,
-    profileImageUrl
-  ) => {
-    const queueRef = collection(db, "spaces", spaceId, "queue");
+  // const acceptRequest = async (
+  //   spaceId,
+  //   requestId,
+  //   requestData,
+  //   hostId,
+  //   hostName,
+  //   profileImageUrl
+  // ) => {
+  //   const queueRef = collection(db, "spaces", spaceId, "queue");
+  //   const requestRef = doc(db, "spaces", spaceId, "requests", requestId);
+
+  //   const queueData = {
+  //     addedAt: serverTimestamp(),
+  //     addedById: hostId,
+  //     addedByName: hostName,
+  //     artist: requestData.artist || null,
+  //     assetId: requestData.assetId || null,
+  //     assetName: requestData.assetName || null,
+  //     coverUrl: requestData.coverUrl || null,
+  //     genre: requestData.genre || null,
+  //     previewUrl: requestData.previewUrl || null,
+  //     profileImageUrl,
+  //     year: requestData.year || null,
+  //   };
+
+  //   await addDoc(queueRef, queueData);
+  //   await deleteDoc(requestRef);
+  // };
+
+  const acceptRequest = async (spaceId, requestId) => {
     const requestRef = doc(db, "spaces", spaceId, "requests", requestId);
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+
+    const requestSnap = await getDoc(requestRef);
+    if (!requestSnap.exists()) {
+      console.error("Request not found");
+      return;
+    }
+
+    const requestData = requestSnap.data();
 
     const queueData = {
       addedAt: serverTimestamp(),
-      addedById: hostId,
-      addedByName: hostName,
+      addedById: requestData.requesteById || null,
+      addedByName: requestData.requestedByName || null,
       artist: requestData.artist || null,
       assetId: requestData.assetId || null,
       assetName: requestData.assetName || null,
       coverUrl: requestData.coverUrl || null,
       genre: requestData.genre || null,
       previewUrl: requestData.previewUrl || null,
-      profileImageUrl,
+      profileImageUrl: requestData.profilePhotoUrl || null,
       year: requestData.year || null,
     };
 
