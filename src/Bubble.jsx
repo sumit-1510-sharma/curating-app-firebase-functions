@@ -11,8 +11,8 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 const currentUser = {
-  id: "user_1",
-  name: "user 1",
+  id: "sumit_15102000",
+  name: "sumit sharma",
   photoUrl:
     "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fuser_2.jpg?alt=media&token=105849e1-2a31-4b43-9f36-2d2bca4b2126",
 };
@@ -176,6 +176,7 @@ export default function Bubble() {
       requestedByName: user.name,
       requesteById: user.id,
       addedAt: serverTimestamp(),
+      seen: false,
     });
   };
 
@@ -195,6 +196,7 @@ export default function Bubble() {
       requestedByName: user.name,
       requesteById: user.id,
       addedAt: serverTimestamp(),
+      seen: false,
     });
   };
 
@@ -214,6 +216,7 @@ export default function Bubble() {
       requestedByName: user.name,
       requesteById: user.id,
       addedAt: serverTimestamp(),
+      seen: false,
     });
   };
 
@@ -234,6 +237,7 @@ export default function Bubble() {
       requestedByName: user.name,
       requestedById: user.id,
       addedAt: serverTimestamp(),
+      seen: false,
     });
   };
 

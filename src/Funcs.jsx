@@ -55,7 +55,7 @@ const Funcs = () => {
 
   const sourceId = "user_1";
   const userId = "user_1";
-  const targetId = "sumit_15102000";
+  const targetId = "tpylN8E6nAZtbvILAx14r0qb6ZA2";
 
   const spaceId = "zqTZ7SbddQTLbNCpaggW";
   const memberId = "12345";
@@ -69,8 +69,8 @@ const Funcs = () => {
   const activity = "vibing";
 
   const user = {
-    id: "user_1",
-    name: "user 1",
+    id: "sumit_15102000",
+    name: "sumit sharma",
     photoUrl:
       "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fuser_2.jpg?alt=media&token=105849e1-2a31-4b43-9f36-2d2bca4b2126",
   };
