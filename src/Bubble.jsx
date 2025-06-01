@@ -11,9 +11,10 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 const currentUser = {
-  name: "sumit sharma",
-  photoURL:
-    "https://images.pexels.com/photos/1054655/pexels-photo-1054655.jpeg?cs=srgb&dl=pexels-hsapir-1054655.jpg&fm=jpg",
+  id: "user_1",
+  name: "user 1",
+  photoUrl:
+    "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fuser_2.jpg?alt=media&token=105849e1-2a31-4b43-9f36-2d2bca4b2126",
 };
 const music = MusicKit.getInstance();
 
@@ -361,147 +362,143 @@ export default function Bubble() {
         </div>
       )}
 
-      {bubble?.category === "music" && (
-        <div style={{ marginBottom: 24 }}>
-          <h3>Search Music (Apple Music)</h3>
-          <input
-            type="text"
-            value={searchTerm}
-            placeholder="Search songs..."
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{ padding: 8, marginRight: 8 }}
-          />
-          <button onClick={handleMusicSearch}>Search</button>
+      <div style={{ marginBottom: 24 }}>
+        <h3>Search Music (Apple Music)</h3>
+        <input
+          type="text"
+          value={searchTerm}
+          placeholder="Search songs..."
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ padding: 8, marginRight: 8 }}
+        />
+        <button onClick={handleMusicSearch}>Search</button>
 
-          {loading && <p>Loading...</p>}
+        {loading && <p>Loading...</p>}
 
-          <div style={{ marginTop: 16 }}>
-            {songs.map((song) => (
-              <div
-                key={song.id}
-                style={{
-                  marginBottom: 12,
-                  padding: 12,
-                  border: "1px solid #ccc",
-                  borderRadius: 6,
-                  position: "relative",
-                }}
-              >
-                <h4>{song.attributes.name}</h4>
-                <p>{song.attributes.artistName}</p>
-                {song.attributes.artwork?.url && (
-                  <img
-                    src={song.attributes.artwork.url
-                      .replace("{w}", "100")
-                      .replace("{h}", "100")}
-                    alt={song.attributes.name}
-                    style={{ height: 100 }}
-                  />
-                )}
-                <div
-                  style={{
-                    position: "absolute",
-                    display: "flex",
-                    right: 20,
-                    bottom: "40%",
-                    gap: 20,
-                  }}
-                >
-                  <button onClick={() => sendSongRequest(song, currentUser)}>
-                    Request to add
-                  </button>
-                  <button
-                    onClick={() =>
-                      playPreview(song.attributes?.previews?.[0]?.url)
-                    }
-                  >
-                    Play preview
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 24 }}>
-            <h3>Song Queue</h3>
-            {queue.length === 0 ? (
-              <p>No songs in queue</p>
-            ) : (
-              queue.map((song, index) => (
-                <div
-                  key={song.id}
-                  onClick={() => playSongAtIndex(index)}
-                  style={{
-                    position: "relative",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: 8,
-                    border: "1px solid #ddd",
-                    borderRadius: 6,
-                    marginBottom: 8,
-                    cursor: "pointer",
-                    backgroundColor: "#FAE3C6",
-                    color: "#533B4D",
-                  }}
-                >
-                  {song.coverUrl && (
-                    <img
-                      src={song.coverUrl}
-                      alt="cover"
-                      style={{ width: 60, height: 60, borderRadius: 4 }}
-                    />
-                  )}
-                  <div>
-                    <strong>{song.songId}</strong>
-                    <br />
-                    <small>Added by: {song.addedBy || "Unknown"}</small>
-                  </div>
-                  <audio ref={audioRef} />
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-
-      {isHost && requests.length > 0 && (
-        <div style={{ marginTop: 32 }}>
-          <h3>Song Requests</h3>
-          {requests.map((req) => (
+        <div style={{ marginTop: 16 }}>
+          {songs.map((song) => (
             <div
-              key={req.id}
+              key={song.id}
               style={{
-                border: "1px solid #ccc",
                 marginBottom: 12,
                 padding: 12,
-                borderRadius: 8,
+                border: "1px solid #ccc",
+                borderRadius: 6,
+                position: "relative",
               }}
             >
-              <img src={req.coverUrl} alt="cover" style={{ height: 60 }} />
-              <p>
-                <strong>{req.songTitle}</strong> by {req.artist}
-              </p>
-              <p>Requested by: {req.requestedBy}</p>
-
-              <audio
-                controls
-                src={req.previewUrl}
-                onPlay={() => playControlPreview(req.previewUrl)}
-              ></audio>
-
-              <div style={{ marginTop: 8 }}>
-                <button
-                  onClick={() => approveRequest(req.id, req)}
-                  style={{ marginRight: 8 }}
-                >
-                  Approve
+              <h4>{song.attributes.name}</h4>
+              <p>{song.attributes.artistName}</p>
+              {song.attributes.artwork?.url && (
+                <img
+                  src={song.attributes.artwork.url
+                    .replace("{w}", "100")
+                    .replace("{h}", "100")}
+                  alt={song.attributes.name}
+                  style={{ height: 100 }}
+                />
+              )}
+              <div
+                style={{
+                  position: "absolute",
+                  display: "flex",
+                  right: 20,
+                  bottom: "40%",
+                  gap: 20,
+                }}
+              >
+                <button onClick={() => sendSongRequest(song, currentUser)}>
+                  Request to add
                 </button>
-                <button onClick={() => rejectRequest(req.id)}>Reject</button>
+                <button
+                  onClick={() =>
+                    playPreview(song.attributes?.previews?.[0]?.url)
+                  }
+                >
+                  Play preview
+                </button>
               </div>
             </div>
           ))}
         </div>
-      )}
+        <div style={{ marginTop: 24 }}>
+          <h3>Song Queue</h3>
+          {queue.length === 0 ? (
+            <p>No songs in queue</p>
+          ) : (
+            queue.map((song, index) => (
+              <div
+                key={song.id}
+                onClick={() => playSongAtIndex(index)}
+                style={{
+                  position: "relative",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 12,
+                  padding: 8,
+                  border: "1px solid #ddd",
+                  borderRadius: 6,
+                  marginBottom: 8,
+                  cursor: "pointer",
+                  backgroundColor: "#FAE3C6",
+                  color: "#533B4D",
+                }}
+              >
+                {song.coverUrl && (
+                  <img
+                    src={song.coverUrl}
+                    alt="cover"
+                    style={{ width: 60, height: 60, borderRadius: 4 }}
+                  />
+                )}
+                <div>
+                  <strong>{song.songId}</strong>
+                  <br />
+                  <small>Added by: {song.addedBy || "Unknown"}</small>
+                </div>
+                <audio ref={audioRef} />
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      <div style={{ marginTop: 32 }}>
+        <h3>Song Requests</h3>
+        {requests.map((req) => (
+          <div
+            key={req.id}
+            style={{
+              border: "1px solid #ccc",
+              marginBottom: 12,
+              padding: 12,
+              borderRadius: 8,
+            }}
+          >
+            <img src={req.coverUrl} alt="cover" style={{ height: 60 }} />
+            <p>
+              <strong>{req.songTitle}</strong> by {req.artist}
+            </p>
+            <p>Requested by: {req.requestedBy}</p>
+
+            <audio
+              controls
+              src={req.previewUrl}
+              onPlay={() => playControlPreview(req.previewUrl)}
+            ></audio>
+
+            <div style={{ marginTop: 8 }}>
+              <button
+                onClick={() => approveRequest(req.id, req)}
+                style={{ marginRight: 8 }}
+              >
+                Approve
+              </button>
+              <button onClick={() => rejectRequest(req.id)}>Reject</button>
+            </div>
+          </div>
+        ))}
+      </div>
 
       {/* Chatroom always visible */}
       <Chatroom bubbleId={bubbleId} />

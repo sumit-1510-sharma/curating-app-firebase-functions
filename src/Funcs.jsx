@@ -53,11 +53,11 @@ const Funcs = () => {
   const [requestList, setRequestList] = useState([]);
   const [notificationList, setNotificationList] = useState([]);
 
-  const sourceId = "12345";
+  const sourceId = "user_1";
   const userId = "user_1";
-  const targetId = "user_6";
+  const targetId = "sumit_15102000";
 
-  const spaceId = "0ifF7IT7xHpjsBDG6Nmc";
+  const spaceId = "zqTZ7SbddQTLbNCpaggW";
   const memberId = "12345";
   const name = "sumit sharma";
   const profileUrl =
@@ -69,8 +69,8 @@ const Funcs = () => {
   const activity = "vibing";
 
   const user = {
-    id: "user_3",
-    name: "user 3",
+    id: "user_1",
+    name: "user 1",
     photoUrl:
       "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fuser_2.jpg?alt=media&token=105849e1-2a31-4b43-9f36-2d2bca4b2126",
   };
@@ -831,25 +831,23 @@ const Funcs = () => {
     });
 
     // ✅ Step 3: Notify space owner (if the user isn’t the owner)
-    if (spaceOwnerId !== user.id) {
-      const notificationRef = collection(
-        db,
-        "users",
-        spaceOwnerId,
-        "notifications"
-      );
-      await addDoc(notificationRef, {
-        sentAt: serverTimestamp(),
-        sentById: user.id,
-        sentByName: user.name,
-        sentByPhotoUrl: user.photoUrl,
-        spaceId,
-        spaceTitle: spaceData?.bubbleTitle || "",
-        spaceCat: spaceData?.category || "",
-        type: "join",
-        seen: false,
-      });
-    }
+    const notificationRef = collection(
+      db,
+      "users",
+      spaceOwnerId,
+      "notifications"
+    );
+    await addDoc(notificationRef, {
+      sentAt: serverTimestamp(),
+      sentById: user.id,
+      sentByName: user.name,
+      sentByPhotoUrl: user.photoUrl,
+      spaceId,
+      spaceTitle: spaceData?.bubbleTitle || "",
+      spaceCat: spaceData?.category || "",
+      type: "join",
+      seen: false,
+    });
 
     console.log(`User ${user.id} joined space ${spaceId}`);
   };
@@ -1192,46 +1190,54 @@ const Funcs = () => {
   // };
 
   const likeSpace = async (spaceId, user) => {
-    if (!spaceId || !user.id) {
-      throw new Error("spaceId and userId are required.");
+    if (!spaceId || !user?.id || !user.name || !user.photoUrl) {
+      throw new Error("Missing required fields to like the space.");
     }
 
     const spaceRef = doc(db, "spaces", spaceId);
     const likeRef = doc(db, `spaces/${spaceId}/likedByIds`, user.id);
 
+    // ✅ Step 1: Pre-fetch space data
+    const spaceSnap = await getDoc(spaceRef);
+    if (!spaceSnap.exists()) {
+      throw new Error("Space not found.");
+    }
+
+    const spaceData = spaceSnap.data();
+    const hostId = spaceData?.hostId;
+
+    if (!hostId) {
+      throw new Error("Space owner ID not found.");
+    }
+
+    // ✅ Step 2: Transaction to safely like the space
     await runTransaction(db, async (transaction) => {
       const likeSnap = await transaction.get(likeRef);
       if (likeSnap.exists()) {
         throw new Error("User already liked this space.");
       }
 
-      // Add userId to likedByIds subcollection
-      transaction.set(likeRef, { likedAt: new Date().toISOString() });
-
-      // Get the space data to find the owner
-      const spaceSnap = await transaction.get(spaceRef);
-      if (!spaceSnap.exists()) {
-        throw new Error("Space does not exist.");
-      }
-
-      const spaceData = spaceSnap.data();
-      const hostId = spaceData.hostId;
-      if (!hostId || hostId === user.id) return; // No notification to self
-
-      // Prepare notification
-      const notificationRef = collection(db, "users", hostId, "notifications");
-      await addDoc(notificationRef, {
-        sentAt: serverTimestamp(),
-        sentById: user.id,
-        sentByName: user.name || "",
-        sentByPhotoUrl: user.photoUrl || "",
-        spaceId: spaceId,
-        spaceTitle: spaceData.bubbleTitle,
-        spaceCat: spaceData.category,
-        type: "like", // join // follow
-        seen: false,
+      transaction.set(likeRef, {
+        likedAt: serverTimestamp(),
       });
     });
+
+    // ✅ Step 3: Send notification to host (if user isn’t host)
+
+    const notificationRef = collection(db, "users", hostId, "notifications");
+    await addDoc(notificationRef, {
+      sentAt: serverTimestamp(),
+      sentById: user.id,
+      sentByName: user.name,
+      sentByPhotoUrl: user.photoUrl,
+      spaceId,
+      spaceTitle: spaceData?.bubbleTitle || "",
+      spaceCat: spaceData?.category || "",
+      type: "like",
+      seen: false,
+    });
+
+    console.log(`User ${user.id} liked space ${spaceId}`);
   };
 
   const unlikeSpace = async (spaceId, userId) => {
@@ -1559,9 +1565,7 @@ const Funcs = () => {
 
       <div className="function-block">
         <h3>Follow user</h3>
-        <button onClick={() => followUser(sourceId, targetId)}>
-          Follow user
-        </button>
+        <button onClick={() => followUser(user, targetId)}>Follow user</button>
       </div>
 
       <div className="function-block">
@@ -1681,6 +1685,11 @@ const Funcs = () => {
       <div className="function-block">
         <h3>Search spaces</h3>
         <button onClick={() => fetchRandomSpaces()}>Fetch</button>
+      </div>
+
+      <div className="function-block">
+        <h3>Like space</h3>
+        <button onClick={() => likeSpace(spaceId, user)}>like</button>
       </div>
       {/* <div className="function-block">
         <h3>Update User Profile</h3>
