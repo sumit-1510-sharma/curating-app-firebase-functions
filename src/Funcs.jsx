@@ -137,8 +137,12 @@ const Funcs = () => {
     try {
       // const defaultPhotoUrl =
       //   "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d38231ee-ef01-46bd-86e7-7b3e76df3d16";
+
       const defaultPhotoUrl =
-        "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15";
+        "https://firebasestorage.googleapis.com/v0/b/plugged-dev-252d8.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d0facec0-fdca-4267-beae-1522947c3941";
+
+      // const defaultPhotoUrl =
+      //   "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15";
       let photoUrl = defaultPhotoUrl;
 
       if (imageFile) {
@@ -289,7 +293,6 @@ const Funcs = () => {
 
       const hasMore = snapshot.docs.length === pageSize;
 
-      console.log(spaces);
       return { spaces, lastVisible, hasMore };
     } catch (err) {
       console.error("Error paginating spaces:", err);
@@ -1152,8 +1155,6 @@ const Funcs = () => {
       ...doc.data(),
     }));
 
-    console.log(messages);
-
     const newLastDoc = snapshot.docs[snapshot.docs.length - 1] || null;
 
     return { messages, lastDoc: newLastDoc };
@@ -1162,7 +1163,6 @@ const Funcs = () => {
   useEffect(() => {
     const fetchInitial = async () => {
       const { messages, lastDoc } = await loadInitialMessages(spaceId);
-      console.log(messages);
       setMessages(messages);
       setLastDoc(lastDoc);
     };
@@ -1293,11 +1293,15 @@ const Funcs = () => {
     const q = query(reqRef, orderBy("addedAt", "desc"), limit(1));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
+      console.log("Snapshot size:", snapshot.size);
       const latest = snapshot.docs[0]?.data();
+      console.log("Latest doc:", latest);
       if (latest && !latest.seen) {
-        callback(true); // new unseen request
+        console.log("New unseen request detected!");
+        callback(true);
       } else {
-        callback(false); // no new unseen request
+        console.log("No new unseen request.");
+        callback(false);
       }
     });
 
@@ -1307,11 +1311,14 @@ const Funcs = () => {
   useEffect(() => {
     if (!spaceId) return;
 
+    console.log("Listening to requests for space:", spaceId);
+
     const unsubscribe = listenToNewRequest(spaceId, (isNew) => {
+      console.log("Callback triggered, new request:", isNew);
       setHasNewRequest(isNew);
     });
 
-    return () => unsubscribe(); // cleanup on unmount
+    return () => unsubscribe();
   }, [spaceId]);
 
   const markRequestAsSeen = async (spaceId, requestId) => {
@@ -1355,7 +1362,6 @@ const Funcs = () => {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log(notifications);
       callback(notifications);
     });
 
@@ -1505,24 +1511,25 @@ const Funcs = () => {
         <button
           onClick={() =>
             createSpace(
-              "vibing",
-              "Lose yourself in magical tales and quiet moments with this one.",
-              "book",
+              "journaling",
+              "For scribbled truths, silent screams, and sentences that almost say it all.",
+              "music",
               imageFile,
-              "A spellbinding story to get lost in when you just want to unwind and drift away.",
-              "tpylN8E6nAZtbvILAx14r0qb6ZA2",
-              "Vipin",
-              "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
-              "chill",
+              "When you're pouring your heart out in cursive but pretending it’s just ink.",
+              "v15o3rit7nNPTiTQHW0u08ThEx42",
+              "Dipin Chopra",
+              "https://firebasestorage.googleapis.com/v0/b/plugged-dev-252d8.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d0facec0-fdca-4267-beae-1522947c3941",
+              "fake fine",
               {
-                assetId: "GwAWS6C33O4C",
-                assetName: "The Night Circus",
+                artist: "Sia",
+                assetId: "882945383",
+                assetName: "Chandelier",
                 coverUrl:
-                  "http://books.google.com/books/content?id=GwAWS6C33O4C&printsec=frontcover&img=1&zoom=1&edge=curl&source=gbs_api",
-                genre: ["Fiction"],
-                year: 2011,
+                  "https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/00/bf/72/00bf72a2-3e50-e5e7-ae78-dc35bbf9bcda/886444578219.jpg/100x100bb.jpg",
+                previewUrl:
+                  "https://audio-ssl.itunes.apple.com/itunes-assets/AudioPreview126/v4/42/18/1d/42181d34-d6aa-71de-4ec9-c4f9efe78690/mzaf_18195570915402914768.plus.aac.p.m4a",
                 profileImageUrl:
-                  "https://firebasestorage.googleapis.com/v0/b/plugged-prod-b6586.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=b301d284-821a-4933-85c9-b48efd861a15",
+                  "https://firebasestorage.googleapis.com/v0/b/plugged-dev-252d8.firebasestorage.app/o/userPhotos%2Fdefault_pic.png?alt=media&token=d0facec0-fdca-4267-beae-1522947c3941",
               }
             )
           }
@@ -1624,9 +1631,7 @@ const Funcs = () => {
 
       <div className="function-block">
         <h3>Get Spaces from followings</h3>
-        <button onClick={() => getSpacesFromFollowings(spaceId, name)}>
-          Get
-        </button>
+        <button onClick={() => getSpacesFromFollowings(user.id)}>Get</button>
       </div>
 
       <div className="function-block">

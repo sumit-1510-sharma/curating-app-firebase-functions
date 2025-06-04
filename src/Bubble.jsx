@@ -11,10 +11,10 @@ import {
 } from "firebase/firestore";
 import { db } from "./firebase";
 const currentUser = {
-  id: "sumit_15102000",
+  id: "sumit_151000",
   name: "sumit sharma",
   photoUrl:
-    "https://firebasestorage.googleapis.com/v0/b/curating-app-1bb19.firebasestorage.app/o/userPhotos%2Fuser_2.jpg?alt=media&token=105849e1-2a31-4b43-9f36-2d2bca4b2126",
+    "https://cdn.pixabay.com/photo/2015/04/23/22/00/new-year-background-736885_1280.jpg",
 };
 const music = MusicKit.getInstance();
 
@@ -303,6 +303,66 @@ export default function Bubble() {
   const rejectRequest = async (spaceId, requestId) => {
     const requestRef = doc(db, "spaces", spaceId, "requests", requestId);
     await deleteDoc(requestRef);
+  };
+
+  const addToQueue = async (spaceId, user, category, queueInputs) => {
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+
+    const commonFields = {
+      addedAt: serverTimestamp(),
+      addedById: user.uid,
+      addedByName: user.name,
+      profileImageUrl: user.profileImageUrl,
+    };
+
+    let categoryFields = {};
+
+    switch (category) {
+      case "music":
+        categoryFields = {
+          artist: queueInputs.artist,
+          assetId: queueInputs.assetId,
+          assetName: queueInputs.assetName,
+          coverUrl: queueInputs.coverUrl,
+          previewUrl: queueInputs.previewUrl,
+        };
+        break;
+      case "movie":
+      case "tvshow":
+        categoryFields = {
+          assetId: queueInputs.assetId,
+          assetName: queueInputs.assetName,
+          coverUrl: queueInputs.coverUrl,
+          genre: queueInputs.genre,
+          year: queueInputs.year,
+        };
+        break;
+      case "book":
+        categoryFields = {
+          artist: queueInputs.artist,
+          assetId: queueInputs.assetId,
+          assetName: queueInputs.assetName,
+          coverUrl: queueInputs.coverUrl,
+          bookGenre: queueInputs.bookGenre,
+          year: queueInputs.year,
+        };
+        break;
+      default:
+        console.error("Unsupported category:", category);
+        return;
+    }
+
+    const docData = {
+      ...commonFields,
+      ...categoryFields,
+    };
+
+    try {
+      await addDoc(queueRef, docData);
+      console.log("Item added to queue successfully.");
+    } catch (error) {
+      console.error("Error adding to queue:", error);
+    }
   };
 
   useEffect(() => {

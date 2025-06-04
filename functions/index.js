@@ -21,12 +21,14 @@ exports.sendFollowNotification = onDocumentCreated(
     if (!token) return;
 
     const followerName = followerSnap.data()?.name || "Someone";
+    const followerImageUrl = followerSnap.data()?.photoUrl || "";
 
     await messaging.sendEachForMulticast({
       tokens: [token], // single token in an array
       notification: {
-        title: `${followerName} followed you`,
+        title: `${followerName} has started following you`,
         body: `Tap to view their profile`,
+        imageUrl: `${followerImageUrl}`,
       },
     });
   }
@@ -44,6 +46,7 @@ exports.sendSpaceLikeNotification = onDocumentCreated(
 
     const space = spaceSnap.data();
     const username = userSnap.data()?.name || "Someone";
+    const photoUrl = userSnap.data()?.photoUrl || "";
     const ownerId = space?.hostId;
 
     // Don't send notification if host likes their own space
@@ -57,7 +60,8 @@ exports.sendSpaceLikeNotification = onDocumentCreated(
       tokens: [token],
       notification: {
         title: `${username} liked your space`,
-        body: `Your space "${space?.title || "Untitled"}" got a like!`,
+        body: `Your space "${space?.bubbleTitle || "Untitled"}" got a like!`,
+        imageUrl: `${photoUrl}`,
       },
     });
   }
@@ -75,6 +79,7 @@ exports.sendSpaceJoinNotification = onDocumentCreated(
 
     const space = spaceSnap.data();
     const username = userSnap.data()?.name || "Someone";
+    const photoUrl = userSnap.data()?.photoUrl || "";
     const ownerId = space?.hostId;
 
     if (!ownerId || userId === ownerId) {
@@ -90,7 +95,10 @@ exports.sendSpaceJoinNotification = onDocumentCreated(
       tokens: [token],
       notification: {
         title: `${username} joined your space`,
-        body: `Your space "${space?.title || "Untitled"}" has a new member!`,
+        body: `Your space "${
+          space?.bubbleTitle || "Untitled"
+        }" has a new member!`,
+        imageUrl: `${photoUrl}`,
       },
     });
   }
@@ -103,15 +111,16 @@ exports.sendSpaceRequestNotification = onDocumentCreated(
 
     const [spaceSnap, requestSnap] = await Promise.all([
       db.doc(`spaces/${spaceId}`).get(),
-      db.doc(`users/${requestId}`).get(),
+      db.doc(`spaces/${spaceId}/requests/${requestId}`).get(),
     ]);
 
     const space = spaceSnap.data();
-    const requesterName = requestSnap.data()?.name || "Someone";
+    const requesterId = requestSnap.data()?.requestedById || "";
+    const requesterName = requestSnap.data()?.requestedByName || "Someone";
+    const requesterImageUrl = requestSnap.data()?.profilePhotoUrl || "";
     const ownerId = space?.hostId;
 
-    if (!ownerId || userId === ownerId) {
-      // Don't send notification if the added member is the host
+    if (!ownerId || requesterId === ownerId) {
       return;
     }
 
@@ -126,6 +135,7 @@ exports.sendSpaceRequestNotification = onDocumentCreated(
         body: `${requesterName} requested to add song in your space "${
           space?.bubbleTitle || "Untitled"
         }".`,
+        imageUrl: `${requesterImageUrl}`,
       },
     });
   }
