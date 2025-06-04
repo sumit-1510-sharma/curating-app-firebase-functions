@@ -365,6 +365,108 @@ export default function Bubble() {
     }
   };
 
+  const addMusicToQueue = async (spaceId, user, queueInputs) => {
+    const { artist, assetId, assetName, coverUrl, previewUrl } = queueInputs;
+
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+
+    const data = {
+      addedAt: serverTimestamp(),
+      addedById: user.id,
+      addedByName: user.name,
+      profileImageUrl: user.photoUrl,
+      artist,
+      assetId,
+      assetName,
+      coverUrl,
+      previewUrl,
+    };
+
+    try {
+      await addDoc(queueRef, data);
+      console.log("Music added to queue");
+    } catch (error) {
+      console.error("Error adding music:", error);
+    }
+  };
+
+  const addMovieToQueue = async (spaceId, user, queueInputs) => {
+    const { assetId, assetName, coverUrl, genre, year } = queueInputs;
+
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+
+    const data = {
+      addedAt: serverTimestamp(),
+      addedById: user.id,
+      addedByName: user.name,
+      profileImageUrl: user.photoUrl,
+      assetId,
+      assetName,
+      coverUrl,
+      genre,
+      year,
+    };
+
+    try {
+      await addDoc(queueRef, data);
+      console.log("Movie added to queue");
+    } catch (error) {
+      console.error("Error adding movie:", error);
+    }
+  };
+
+  const addTVShowToQueue = async (spaceId, user, queueInputs) => {
+    const { assetId, assetName, coverUrl, genre, year } = queueInputs;
+
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+
+    const data = {
+      addedAt: serverTimestamp(),
+      addedById: user.id,
+      addedByName: user.name,
+      profileImageUrl: user.photoUrl,
+      assetId,
+      assetName,
+      coverUrl,
+      genre,
+      year,
+    };
+
+    try {
+      await addDoc(queueRef, data);
+      console.log("TV show added to queue");
+    } catch (error) {
+      console.error("Error adding TV show:", error);
+    }
+  };
+
+  const addBookToQueue = async (spaceId, user, queueInputs) => {
+    const { artist, assetId, assetName, coverUrl, bookGenre, year } =
+      queueInputs;
+
+    const queueRef = collection(db, "spaces", spaceId, "queue");
+
+    const data = {
+      addedAt: serverTimestamp(),
+      addedById: user.id,
+      addedByName: user.name,
+      profileImageUrl: user.photoUrl,
+      artist,
+      assetId,
+      assetName,
+      coverUrl,
+      bookGenre,
+      year,
+    };
+
+    try {
+      await addDoc(queueRef, data);
+      console.log("Book added to queue");
+    } catch (error) {
+      console.error("Error adding book:", error);
+    }
+  };
+
   useEffect(() => {
     const unsub = onSnapshot(
       collection(db, "bubbles", bubbleId, "requests"),
