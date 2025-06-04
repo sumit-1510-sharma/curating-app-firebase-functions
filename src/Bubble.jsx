@@ -305,66 +305,6 @@ export default function Bubble() {
     await deleteDoc(requestRef);
   };
 
-  const addToQueue = async (spaceId, user, category, queueInputs) => {
-    const queueRef = collection(db, "spaces", spaceId, "queue");
-
-    const commonFields = {
-      addedAt: serverTimestamp(),
-      addedById: user.uid,
-      addedByName: user.name,
-      profileImageUrl: user.profileImageUrl,
-    };
-
-    let categoryFields = {};
-
-    switch (category) {
-      case "music":
-        categoryFields = {
-          artist: queueInputs.artist,
-          assetId: queueInputs.assetId,
-          assetName: queueInputs.assetName,
-          coverUrl: queueInputs.coverUrl,
-          previewUrl: queueInputs.previewUrl,
-        };
-        break;
-      case "movie":
-      case "tvshow":
-        categoryFields = {
-          assetId: queueInputs.assetId,
-          assetName: queueInputs.assetName,
-          coverUrl: queueInputs.coverUrl,
-          genre: queueInputs.genre,
-          year: queueInputs.year,
-        };
-        break;
-      case "book":
-        categoryFields = {
-          artist: queueInputs.artist,
-          assetId: queueInputs.assetId,
-          assetName: queueInputs.assetName,
-          coverUrl: queueInputs.coverUrl,
-          bookGenre: queueInputs.bookGenre,
-          year: queueInputs.year,
-        };
-        break;
-      default:
-        console.error("Unsupported category:", category);
-        return;
-    }
-
-    const docData = {
-      ...commonFields,
-      ...categoryFields,
-    };
-
-    try {
-      await addDoc(queueRef, docData);
-      console.log("Item added to queue successfully.");
-    } catch (error) {
-      console.error("Error adding to queue:", error);
-    }
-  };
-
   const addMusicToQueue = async (spaceId, user, queueInputs) => {
     const { artist, assetId, assetName, coverUrl, previewUrl } = queueInputs;
 
