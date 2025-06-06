@@ -3,9 +3,9 @@ import { doc, setDoc } from "firebase/firestore";
 import { db, messaging } from "./firebase";
 import { getToken, onMessage } from "firebase/messaging";
 
-const userId = "user_1";
+const userId = "sumit_15102000";
 const VAPID_KEY =
-  "BFGAE3Kz5OyY6P1HlV3sSQ-98VnYmhQDpmILLm7QcmNLVT1NSsiftd3hmAO10K_X2GhbOiFXektI9S90kUdMPDo";
+  "BIjvYVzU_boB9YwapL4Yxd87XPNdljl8Hbo9_sXthLstfggEky6wYMSrohRnSvKW0qD1qTMX4cqZiJOw-pYPpHI";
 
 export async function requestNotificationPermission() {
   try {

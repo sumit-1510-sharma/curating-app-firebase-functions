@@ -758,6 +758,30 @@ const Funcs = () => {
     return docSnap.exists();
   };
 
+  const reportUser = async (currentUserId, targetUserId) => {
+    if (!currentUserId || !targetUserId || currentUserId === targetUserId) {
+      throw new Error("Invalid user IDs");
+    }
+
+    const reportRef = doc(
+      db,
+      `users/${targetUserId}/reportedByIds`,
+      currentUserId
+    );
+
+    await runTransaction(db, async (transaction) => {
+      const reportSnap = await transaction.get(reportRef);
+      if (reportSnap.exists()) {
+        throw new Error("User has already been reported.");
+      }
+
+      // Add the reporting user to target user's reportedByIds
+      transaction.set(reportRef, {});
+    });
+
+    console.log(`User ${currentUserId} reported ${targetUserId}`);
+  };
+
   // const joinSpace = async (spaceId, memberId, name, profileUrl) => {
   //   if (!spaceId || !memberId || !name || !profileUrl) {
   //     throw new Error("Missing required fields to join the space.");

@@ -30,6 +30,10 @@ exports.sendFollowNotification = onDocumentCreated(
         body: `Tap to view their profile`,
         imageUrl: `${followerImageUrl}`,
       },
+      data: {
+        userId: followerId,
+        type: "profile",
+      },
     });
   }
 );
@@ -62,6 +66,10 @@ exports.sendSpaceLikeNotification = onDocumentCreated(
         title: `${username} liked your space`,
         body: `Your space "${space?.bubbleTitle || "Untitled"}" got a like!`,
         imageUrl: `${photoUrl}`,
+      },
+      data: {
+        userId: userId,
+        type: "profile",
       },
     });
   }
@@ -100,6 +108,10 @@ exports.sendSpaceJoinNotification = onDocumentCreated(
         }" has a new member!`,
         imageUrl: `${photoUrl}`,
       },
+      data: {
+        userId: userId,
+        type: "profile",
+      },
     });
   }
 );
@@ -136,6 +148,11 @@ exports.sendSpaceRequestNotification = onDocumentCreated(
           space?.bubbleTitle || "Untitled"
         }".`,
         imageUrl: `${requesterImageUrl}`,
+      },
+      data: {
+        spaceId: spaceId,
+        type: "space",
+        category: space?.category,
       },
     });
   }
