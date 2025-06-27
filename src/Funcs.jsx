@@ -17,6 +17,7 @@ import {
   setDoc,
   startAfter,
   startAt,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
@@ -453,6 +454,7 @@ const Funcs = () => {
     const fields = [mood, activity, bubbleTitle, category, hostName];
     const keywordSet = new Set();
 
+    // Add full bubbleTitle and hostName as-is
     if (bubbleTitle) keywordSet.add(bubbleTitle.toLowerCase().trim());
     if (hostName) keywordSet.add(hostName.toLowerCase().trim());
 
@@ -460,18 +462,76 @@ const Funcs = () => {
       if (!field) return;
 
       const words = field.toLowerCase().split(/\s+/);
-
       words.forEach((word) => {
-        keywordSet.add(word);
+        keywordSet.add(word); // full word
 
         for (let i = 3; i < word.length; i++) {
-          keywordSet.add(word.slice(0, i));
+          keywordSet.add(word.slice(0, i)); // prefixes ≥3
         }
       });
     });
 
     return Array.from(keywordSet);
   };
+
+  const addKeywordsToSpace = async (spaceId) => {
+    try {
+      const spaceRef = doc(db, "spaces", spaceId);
+      const snap = await getDoc(spaceRef);
+
+      if (!snap.exists()) {
+        throw new Error(`Space with ID ${spaceId} not found`);
+      }
+
+      const data = snap.data();
+
+      const keywords = generateKeywords(
+        data.mood,
+        data.activity,
+        data.bubbleTitle,
+        data.category,
+        data.hostName
+      );
+
+      await updateDoc(spaceRef, {
+        keywords,
+      });
+
+      console.log(`✅ Keywords updated for space ${spaceId}`);
+    } catch (error) {
+      console.error("❌ Error adding keywords to space:", error);
+    }
+  };
+
+  // const generateKeywords = (
+  //   mood,
+  //   activity,
+  //   bubbleTitle,
+  //   category,
+  //   hostName
+  // ) => {
+  //   const fields = [mood, activity, bubbleTitle, category, hostName];
+  //   const keywordSet = new Set();
+
+  //   if (bubbleTitle) keywordSet.add(bubbleTitle.toLowerCase().trim());
+  //   if (hostName) keywordSet.add(hostName.toLowerCase().trim());
+
+  //   fields.forEach((field) => {
+  //     if (!field) return;
+
+  //     const words = field.toLowerCase().split(/\s+/);
+
+  //     words.forEach((word) => {
+  //       keywordSet.add(word);
+
+  //       for (let i = 3; i < word.length; i++) {
+  //         keywordSet.add(word.slice(0, i));
+  //       }
+  //     });
+  //   });
+
+  //   return Array.from(keywordSet);
+  // };
 
   const getUserSpaces = async (userId) => {
     try {
@@ -1676,6 +1736,14 @@ const Funcs = () => {
         </button>
         {result && <div className="result">{result}</div>}
       </div>
+
+      <div className="function-block">
+        <h3>Add keywords to space</h3>
+        <button onClick={() => addKeywordsToSpace("znzKpJXmlXD7k48zx6mc")}>
+          Add keywords
+        </button>
+      </div>
+
       <div className="function-block">
         <h3>Create user in firestore</h3>
         <input type="file" onChange={handleFileChange} />
