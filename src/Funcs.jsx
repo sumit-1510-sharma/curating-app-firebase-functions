@@ -54,11 +54,12 @@ const Funcs = () => {
   const [notificationList, setNotificationList] = useState([]);
 
   const sourceId = "user_1";
-  const userId = "user_1";
+  const userId = "sumit_151000";
   const targetId = "tpylN8E6nAZtbvILAx14r0qb6ZA2";
 
-  const spaceId = "zqTZ7SbddQTLbNCpaggW";
-  const memberId = "12345";
+  // const spaceId = "zqTZ7SbddQTLbNCpaggW";
+  const spaceId = "eZhbiLhKuRGpHUZQoNex";
+  const memberId = "sumit_151000";
   const name = "sumit sharma";
   const profileUrl =
     "https://plus.unsplash.com/premium_photo-1689568126014-06fea9d5d341?fm=jpg&q=60&w=3000&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MXx8cHJvZmlsZXxlbnwwfHwwfHx8MA%3D%3D";
@@ -440,6 +441,36 @@ const Funcs = () => {
       console.error("Error creating space:", error);
       throw error;
     }
+  };
+
+  const generateKeywords = (
+    mood,
+    activity,
+    bubbleTitle,
+    category,
+    hostName
+  ) => {
+    const fields = [mood, activity, bubbleTitle, category, hostName];
+    const keywordSet = new Set();
+
+    if (bubbleTitle) keywordSet.add(bubbleTitle.toLowerCase().trim());
+    if (hostName) keywordSet.add(hostName.toLowerCase().trim());
+
+    fields.forEach((field) => {
+      if (!field) return;
+
+      const words = field.toLowerCase().split(/\s+/);
+
+      words.forEach((word) => {
+        keywordSet.add(word);
+
+        for (let i = 3; i < word.length; i++) {
+          keywordSet.add(word.slice(0, i));
+        }
+      });
+    });
+
+    return Array.from(keywordSet);
   };
 
   const getUserSpaces = async (userId) => {
@@ -921,6 +952,7 @@ const Funcs = () => {
 
   const isMemberOfSpace = async (spaceId, memberId) => {
     if (!spaceId || !memberId) {
+      console.log("Missing spaceId or memberId.");
       return { isMember: false, isHost: false };
     }
 
@@ -928,14 +960,20 @@ const Funcs = () => {
     const memberSnap = await getDoc(memberRef);
 
     if (!memberSnap.exists()) {
+      console.log("User is NOT a member of the space.");
       return { isMember: false, isHost: false };
     }
 
     const data = memberSnap.data();
-    return {
+    const result = {
       isMember: true,
       isHost: !!data.isHost,
     };
+
+    console.log(
+      `🟢 User is a member of the space. Host status: ${result.isHost}`
+    );
+    return result;
   };
 
   const getSpacesFromFollowings = async (userId) => {
@@ -967,7 +1005,7 @@ const Funcs = () => {
       console.log(allSpaces);
       return allSpaces;
     } catch (error) {
-      console.error("Error fetching spaces from followers:", error);
+      console.error("Error fetching spaces from followings:", error);
       return [];
     }
   };
@@ -1312,38 +1350,38 @@ const Funcs = () => {
     }
   };
 
-  const listenToNewRequest = (spaceId, callback) => {
-    const reqRef = collection(db, "spaces", spaceId, "requests");
-    const q = query(reqRef, orderBy("addedAt", "desc"), limit(1));
+  // const listenToNewRequest = (spaceId, callback) => {
+  //   const reqRef = collection(db, "spaces", spaceId, "requests");
+  //   const q = query(reqRef, orderBy("addedAt", "desc"), limit(1));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      console.log("Snapshot size:", snapshot.size);
-      const latest = snapshot.docs[0]?.data();
-      console.log("Latest doc:", latest);
-      if (latest && !latest.seen) {
-        console.log("New unseen request detected!");
-        callback(true);
-      } else {
-        console.log("No new unseen request.");
-        callback(false);
-      }
-    });
+  //   const unsubscribe = onSnapshot(q, (snapshot) => {
+  //     console.log("Snapshot size:", snapshot.size);
+  //     const latest = snapshot.docs[0]?.data();
+  //     console.log("Latest doc:", latest);
+  //     if (latest && !latest.seen) {
+  //       console.log("New unseen request detected!");
+  //       callback(true);
+  //     } else {
+  //       console.log("No new unseen request.");
+  //       callback(false);
+  //     }
+  //   });
 
-    return unsubscribe;
-  };
+  //   return unsubscribe;
+  // };
 
-  useEffect(() => {
-    if (!spaceId) return;
+  // useEffect(() => {
+  //   if (!spaceId) return;
 
-    console.log("Listening to requests for space:", spaceId);
+  //   console.log("Listening to requests for space:", spaceId);
 
-    const unsubscribe = listenToNewRequest(spaceId, (isNew) => {
-      console.log("Callback triggered, new request:", isNew);
-      setHasNewRequest(isNew);
-    });
+  //   const unsubscribe = listenToNewRequest(spaceId, (isNew) => {
+  //     console.log("Callback triggered, new request:", isNew);
+  //     setHasNewRequest(isNew);
+  //   });
 
-    return () => unsubscribe();
-  }, [spaceId]);
+  //   return () => unsubscribe();
+  // }, [spaceId]);
 
   const markRequestAsSeen = async (spaceId, requestId) => {
     try {
@@ -1363,6 +1401,10 @@ const Funcs = () => {
       const userSnap = await getDoc(userRef);
 
       if (userSnap.exists()) {
+        console.log({
+          success: true,
+          user: { id: userSnap.id, ...userSnap.data() },
+        });
         return { success: true, user: { id: userSnap.id, ...userSnap.data() } };
       } else {
         return { success: false, error: "User not found" };
@@ -1377,78 +1419,118 @@ const Funcs = () => {
 
   const [notifications, setNotifications] = useState([]);
 
-  const listenToNotifications = (userId, callback) => {
-    const notificationsRef = collection(db, "users", userId, "notifications");
-    const q = query(notificationsRef, orderBy("addedAt", "desc"));
+  // const listenToNotifications = (userId, callback) => {
+  //   const notificationsRef = collection(db, "users", userId, "notifications");
+  //   const q = query(notificationsRef, orderBy("addedAt", "desc"));
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifications = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      callback(notifications);
-    });
+  //   const unsubscribe = onSnapshot(q, (snapshot) => {
+  //     const notifications = snapshot.docs.map((doc) => ({
+  //       id: doc.id,
+  //       ...doc.data(),
+  //     }));
+  //     callback(notifications);
+  //   });
 
-    return unsubscribe;
-  };
+  //   return unsubscribe;
+  // };
 
-  useEffect(() => {
-    if (!userId) return;
+  // useEffect(() => {
+  //   if (!userId) return;
 
-    const unsubscribe = listenToNotifications(userId, (notifications) => {
-      setNotifications(notifications);
-    });
+  //   const unsubscribe = listenToNotifications(userId, (notifications) => {
+  //     setNotifications(notifications);
+  //   });
 
-    return () => unsubscribe(); // Cleanup on unmount
-  }, [userId]);
+  //   return () => unsubscribe(); // Cleanup on unmount
+  // }, [userId]);
 
   // search spaces
 
-  const searchSpacesByFields = async (searchTerm) => {
-    try {
-      const spacesRef = collection(db, "spaces");
+  // const searchSpacesByFields = async (searchTerm) => {
+  //   try {
+  //     const spacesRef = collection(db, "spaces");
 
-      // Generate different case formats
-      const lower = searchTerm.toLowerCase();
-      const upper = searchTerm.toUpperCase();
-      const title =
-        searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1).toLowerCase();
-      const sentence =
-        searchTerm[0].toUpperCase() + searchTerm.slice(1).toLowerCase(); // Same as title for single word
+  //     // Generate different case formats
+  //     const lower = searchTerm.toLowerCase();
+  //     const upper = searchTerm.toUpperCase();
+  //     const title =
+  //       searchTerm.charAt(0).toUpperCase() + searchTerm.slice(1).toLowerCase();
+  //     const sentence =
+  //       searchTerm[0].toUpperCase() + searchTerm.slice(1).toLowerCase(); // Same as title for single word
 
-      const variants = [lower, upper, title, sentence];
+  //     const variants = [lower, upper, title, sentence];
 
-      const fields = ["mood", "activity", "category", "hostName"];
+  //     const fields = ["mood", "activity", "category", "hostName"];
 
-      // Create a query for each field-case combination
-      const queries = [];
-      for (const field of fields) {
-        for (const variant of variants) {
-          queries.push(query(spacesRef, where(field, "==", variant)));
+  //     // Create a query for each field-case combination
+  //     const queries = [];
+  //     for (const field of fields) {
+  //       for (const variant of variants) {
+  //         queries.push(query(spacesRef, where(field, "==", variant)));
+  //       }
+  //     }
+
+  //     const results = await Promise.all(queries.map(getDocs));
+
+  //     // Merge results and remove duplicates
+  //     const seen = new Set();
+  //     const mergedResults = [];
+  //     results.forEach((snapshot) => {
+  //       snapshot.forEach((doc) => {
+  //         if (!seen.has(doc.id)) {
+  //           seen.add(doc.id);
+  //           mergedResults.push({ id: doc.id, ...doc.data() });
+  //         }
+  //       });
+  //     });
+
+  //     console.log(mergedResults);
+
+  //     return { success: true, results: mergedResults };
+  //   } catch (error) {
+  //     console.error("Search error:", error);
+  //     return { success: false, error: error.message };
+  //   }
+  // };
+
+  const searchSpacesByKeyword = async (searchTerm) => {
+    if (!searchTerm || typeof searchTerm !== "string") return [];
+
+    const lowerTerm = searchTerm.toLowerCase().trim();
+
+    // 1. Search spaces by keyword
+    const q = query(
+      collection(db, "spaces"),
+      where("keywords", "array-contains", lowerTerm),
+      orderBy("likesCount", "desc"),
+      limit(20)
+    );
+
+    const snapshot = await getDocs(q);
+    const spaces = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+    // 2. For each host, fetch their status from Firestore /users/{hostId}
+    const enrichedSpaces = await Promise.all(
+      spaces.map(async (space) => {
+        const hostRef = doc(db, "users", space.hostId);
+        try {
+          const hostSnap = await getDoc(hostRef);
+          const hostData = hostSnap.exists() ? hostSnap.data() : {};
+          return {
+            ...space,
+            hostStatus: hostData.status || "offline",
+          };
+        } catch (err) {
+          console.warn(`Error fetching host ${space.hostId}:`, err);
+          return {
+            ...space,
+            hostStatus: "offline",
+          };
         }
-      }
+      })
+    );
 
-      const results = await Promise.all(queries.map(getDocs));
-
-      // Merge results and remove duplicates
-      const seen = new Set();
-      const mergedResults = [];
-      results.forEach((snapshot) => {
-        snapshot.forEach((doc) => {
-          if (!seen.has(doc.id)) {
-            seen.add(doc.id);
-            mergedResults.push({ id: doc.id, ...doc.data() });
-          }
-        });
-      });
-
-      console.log(mergedResults);
-
-      return { success: true, results: mergedResults };
-    } catch (error) {
-      console.error("Search error:", error);
-      return { success: false, error: error.message };
-    }
+    return enrichedSpaces;
   };
 
   const searchUserProfiles = async (searchTerm) => {
@@ -1525,10 +1607,42 @@ const Funcs = () => {
     return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   };
 
+  // const listenToNewChatMessage = (spaceId, callback) => {
+  //   const chatRef = collection(db, "spaces", spaceId, "chat");
+  //   const q = query(chatRef, orderBy("timestamp", "desc"), limit(1));
+
+  //   const unsubscribe = onSnapshot(q, (snapshot) => {
+  //     const latest = snapshot.docs[0]?.data();
+  //     if (latest) {
+  //       callback(latest);
+  //     } else {
+  //       callback(null);
+  //     }
+  //   });
+
+  //   return unsubscribe;
+  // };
+
+  // useEffect(() => {
+  //   if (!spaceId) return;
+
+  //   const unsubscribe = listenToNewChatMessage(spaceId, (newMessage) => {
+  //     if (newMessage) {
+  //       console.log("🟢 New chat message detected:", newMessage);
+  //     } else {
+  //       console.log("⚪ No chat message found.");
+  //     }
+  //   });
+
+  //   // Cleanup on unmount
+  //   return () => {
+  //     unsubscribe();
+  //   };
+  // }, [spaceId]);
+
   return (
     <div className="funcs-container">
       <h2>Firebase Function Tester</h2>
-
       <div className="function-block">
         <h3>Create Space</h3>
         <input type="file" onChange={handleFileChange} />
@@ -1562,7 +1676,6 @@ const Funcs = () => {
         </button>
         {result && <div className="result">{result}</div>}
       </div>
-
       <div className="function-block">
         <h3>Create user in firestore</h3>
         <input type="file" onChange={handleFileChange} />
@@ -1580,7 +1693,6 @@ const Funcs = () => {
           Create user
         </button>
       </div>
-
       <div className="function-block">
         <h3>Get bubbles based on mood and activity</h3>
         <button onClick={() => loadMoreSpaces(mood, activity)}>
@@ -1593,93 +1705,85 @@ const Funcs = () => {
           Refresh spaces
         </button>
       </div>
-
       <div className="function-block">
         <h3>Follow user</h3>
         <button onClick={() => followUser(user, targetId)}>Follow user</button>
       </div>
-
       <div className="function-block">
         <h3>Unfollow user</h3>
         <button onClick={() => unfollowUser(sourceId, targetId)}>
           Unfollow user
         </button>
       </div>
-
       <div className="function-block">
         <h3>Do I follow the user</h3>
         <button onClick={() => isFollowing(sourceId, targetId)}>
           Am I a follower ?
         </button>
       </div>
-
       <div className="function-block">
         <h3>Does this user follow me</h3>
         <button onClick={() => isFollowedBy(sourceId, targetId)}>
           Am I being followed ?
         </button>
       </div>
-
       <div className="function-block">
         <h3>Block user</h3>
         <button onClick={() => blockUser(sourceId, targetId)}>
           Block user
         </button>
       </div>
-
       <div className="function-block">
         <h3>Unblock user</h3>
         <button onClick={() => unblockUser(sourceId, targetId)}>
           Unblock user
         </button>
       </div>
-
       <div className="function-block">
         <h3>Have I blocked this user</h3>
         <button onClick={() => hasBlocked(sourceId, targetId)}>
           Have I blocked this user ?
         </button>
       </div>
-
       <div className="function-block">
         <h3>Am I blocked by this user</h3>
         <button onClick={() => isBlockedBy(sourceId, targetId)}>
           Am I blocked ?
         </button>
       </div>
-
       <div className="function-block">
         <h3>Join Space</h3>
         <button onClick={() => joinSpace(spaceId, user)}>join</button>
       </div>
 
       <div className="function-block">
+        <h3>Am I a member ?</h3>
+        <button onClick={() => isMemberOfSpace(spaceId, memberId)}>
+          Am I a member ?
+        </button>
+      </div>
+      <div className="function-block">
         <h3>Get Spaces from followings</h3>
         <button onClick={() => getSpacesFromFollowings(user.id)}>Get</button>
       </div>
-
       <div className="function-block">
         <h3>Get Space Data</h3>
         <button onClick={() => getSpaceWithQueue(spaceId)}>Get</button>
       </div>
-
       <div className="function-block">
         <h3>Add to queue</h3>
         <button onClick={() => addSongToQueue(spaceId, song5, user)}>
           Add
         </button>
       </div>
-
       <div className="function-block">
         <h3>Fetch followers's data</h3>
         <button onClick={() => fetchFollowersData(sourceId)}>Fetch</button>
       </div>
-
       <div className="function-block">
         <h3>Fetch members</h3>
         <button onClick={() => fetchMembersFromSpace(spaceId)}>Fetch</button>
       </div>
-
       <div className="function-block">
         <h3>Send messages</h3>
         <button
@@ -1690,35 +1794,33 @@ const Funcs = () => {
           Send
         </button>
       </div>
-
       <div className="function-block">
         <h3>Load more messages</h3>
         <button onClick={() => loadOlder()}>Fetch</button>
       </div>
-
       <div className="function-block">
-        <h3>Search spaces by fields</h3>
-        <button onClick={() => searchSpacesByFields("music")}>Fetch</button>
+        <h3>Search spaces through search term</h3>
+        <button onClick={() => searchSpacesByPrefix("boo")}>Fetch</button>
       </div>
-
       <div className="function-block">
         <h3>Search users</h3>
         <button onClick={() => searchUserProfiles("dipin")}>Fetch</button>
       </div>
-
       <div className="function-block">
         <h3>Search spaces</h3>
         <button onClick={() => getUserSpaces(userId)}>Fetch</button>
       </div>
-
       <div className="function-block">
         <h3>Search spaces</h3>
         <button onClick={() => fetchRandomSpaces()}>Fetch</button>
       </div>
-
       <div className="function-block">
         <h3>Like space</h3>
         <button onClick={() => likeSpace(spaceId, user)}>like</button>
+      </div>
+      <div className="function-block">
+        <h3>Get user by id</h3>
+        <button onClick={() => getUserById(userId)}>like</button>
       </div>
       {/* <div className="function-block">
         <h3>Update User Profile</h3>
@@ -1731,7 +1833,6 @@ const Funcs = () => {
         <button onClick={updateUserProfile}>Update</button>
         {result && <div className="result">{result}</div>}
       </div> */}
-
       {/* Add more function blocks below as needed */}
     </div>
   );
