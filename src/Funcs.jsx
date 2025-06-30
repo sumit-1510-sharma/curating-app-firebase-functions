@@ -1576,6 +1576,7 @@ const Funcs = () => {
         try {
           const hostSnap = await getDoc(hostRef);
           const hostData = hostSnap.exists() ? hostSnap.data() : {};
+
           return {
             ...space,
             hostStatus: hostData.status || "offline",
@@ -1589,6 +1590,8 @@ const Funcs = () => {
         }
       })
     );
+
+    console.log(enrichedSpaces);
 
     return enrichedSpaces;
   };
@@ -1868,7 +1871,7 @@ const Funcs = () => {
       </div>
       <div className="function-block">
         <h3>Search spaces through search term</h3>
-        <button onClick={() => searchSpacesByPrefix("boo")}>Fetch</button>
+        <button onClick={() => searchSpacesByKeyword("dipin")}>Fetch</button>
       </div>
       <div className="function-block">
         <h3>Search users</h3>

@@ -194,6 +194,74 @@ exports.sendSpaceRequestNotification = onDocumentCreated(
   }
 );
 
+exports.sendRequestAcceptedNotification = onDocumentCreated(
+  "spaces/{spaceId}/queue/{itemId}",
+  async (event) => {
+    const { spaceId, itemId } = event.params;
+
+    const [spaceSnap, queueSnap] = await Promise.all([
+      db.doc(`spaces/${spaceId}`).get(),
+      db.doc(`spaces/${spaceId}/queue/${itemId}`).get(),
+    ]);
+
+    const space = spaceSnap.data();
+    const queueItem = queueSnap.data();
+    if (!space || !queueItem) return;
+
+    const userId = queueItem.addedById || "";
+    const userImageUrl = request.profileImageUrl || "";
+    const bubbleTitle = space.bubbleTitle || "";
+    const category = space.category || "default";
+    const ownerId = space.hostId;
+
+    if (!userId || userId === ownerId) return;
+
+    const userSnap = await db.doc(`users/${userId}`).get();
+    const token = userSnap.data()?.fcmToken;
+    if (!token) return;
+
+    const categoryMessages = {
+      music: {
+        title: "Song request accepted 🎶",
+        body: `Your song was added in ${bubbleTitle || "the space"}!`,
+      },
+      movie: {
+        title: "Movie request accepted 🎬",
+        body: `Your movie was added in ${bubbleTitle || "the space"}!`,
+      },
+      tvshow: {
+        title: "TV show request accepted 📺",
+        body: `Your show was added in ${bubbleTitle || "the space"}!`,
+      },
+      book: {
+        title: "Book request accepted 📚",
+        body: `Your book was added in ${bubbleTitle || "the space"}!`,
+      },
+      default: {
+        title: "Request accepted ✅",
+        body: `Your request was accepted in ${bubbleTitle || "the space"}!`,
+      },
+    };
+
+    const messageContent =
+      categoryMessages[category] || categoryMessages.default;
+
+    await messaging.sendEachForMulticast({
+      tokens: [token],
+      notification: {
+        title: messageContent.title,
+        body: messageContent.body,
+        imageUrl: userImageUrl,
+      },
+      data: {
+        spaceId,
+        type: "space",
+        category,
+      },
+    });
+  }
+);
+
 exports.sendNewChatMessageNotification = onDocumentCreated(
   "spaces/{spaceId}/chat/{messageId}",
   async (event) => {
