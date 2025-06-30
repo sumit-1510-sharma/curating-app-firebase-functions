@@ -209,7 +209,7 @@ exports.sendRequestAcceptedNotification = onDocumentCreated(
     if (!space || !queueItem) return;
 
     const userId = queueItem.addedById || "";
-    const userImageUrl = request.profileImageUrl || "";
+    const userImageUrl = queueItem.profileImageUrl || "";
     const bubbleTitle = space.bubbleTitle || "";
     const category = space.category || "default";
     const ownerId = space.hostId;
