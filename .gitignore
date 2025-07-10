@@ -32,3 +32,9 @@ generate-token.cjs
 # firebase files
 firebase-messaging-sw.js
 firebase.js
+
+# functions
+functions/index.js
+
+# environment variables
+.env

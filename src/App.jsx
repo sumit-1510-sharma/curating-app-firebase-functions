@@ -8,6 +8,7 @@ import Funcs from "./Funcs";
 import PhoneAuth from "./PhoneAuth";
 import PresenceTester from "./PresenceTester";
 import Status from "./Status";
+import SearchPage from "./SearchPage";
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
       <Route path="/bubble/:bubbleId" element={<Bubble />} />
       <Route path="/bubbles" element={<Bubbles />} />
       <Route path="/funcs" element={<Funcs />} />
+      <Route path="/searchpage" element={<SearchPage />} />
       <Route path="/presence" element={<PresenceTester />} />
       <Route path="/status" element={<Status />} />
       <Route path="/authenticate" element={<PhoneAuth />} />
