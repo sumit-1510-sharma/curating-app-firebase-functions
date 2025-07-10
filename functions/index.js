@@ -5,10 +5,10 @@ const { getMessaging } = require("firebase-admin/messaging");
 const { onValueWritten } = require("firebase-functions/v2/database");
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const APPLE_API_KEY =
-  "Bearer eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjIzS0Y5Qjg2MjYifQ.eyJpYXQiOjE3NDY0MjA4NTcsImV4cCI6MTc2MTk3Mjg1NywiaXNzIjoiNFpaTjVaRzVSMiJ9.q9TlxLvkcaE3om0u-OqVK7WEUesGBJ55RccZffI3IcHjFDylEdh2N4SDFC16ix4p6yT3YvmiVUTwtmE521iV5Q";
+  "";
 const TMDB_API_KEY =
-  "Bearer eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiI3NDEyZTM4NjI5ZTQ5ZDU2ZjAyNzhlOWI4NjllZmI0OSIsIm5iZiI6MTc0ODg0NjAwNi40NTI5OTk4LCJzdWIiOiI2ODNkNDViNjJiMTNiMTlmNmEyODkwMzciLCJzY29wZXMiOlsiYXBpX3JlYWQiXSwidmVyc2lvbiI6MX0.FcXsZ5WYRBh89XVHqba50MCNAXGsUh3hwuDmZf_YUNs";
-const BOOK_API_KEY = "AIzaSyDrk4-QQIHpjGahxwYiBoW9B8yVYirSoJs";
+  "";
+const BOOK_API_KEY = "";
 
 initializeApp();
 const db = getFirestore();
