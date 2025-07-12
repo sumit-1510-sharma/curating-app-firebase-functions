@@ -912,6 +912,7 @@ const Funcs = () => {
     const memberId = user.id;
     const spaceRef = doc(db, "spaces", spaceId);
     const memberRef = doc(spaceRef, "members", memberId);
+    const joinedSpaceRef = doc(db, "users", user.id, "joinedSpaces", spaceId);
 
     // ✅ Step 1: Pre-fetch space data
     const spaceSnap = await getDoc(spaceRef);
@@ -926,14 +927,14 @@ const Funcs = () => {
       throw new Error("Space owner ID not found.");
     }
 
-    // ✅ Step 2: Transaction to safely join the space
+    // ✅ Step 2: Transaction to safely join the space & update reverse mapping
     await runTransaction(db, async (transaction) => {
       const memberSnap = await transaction.get(memberRef);
       if (memberSnap.exists()) {
         throw new Error("User is already a member of this space.");
       }
 
-      // Set member document
+      // Add user to space's members
       transaction.set(memberRef, {
         memberId,
         name: user.name,
@@ -946,26 +947,31 @@ const Funcs = () => {
       transaction.update(spaceRef, {
         membersCount: increment(1),
       });
+
+      // Add space to user's joinedSpaces
+      transaction.set(joinedSpaceRef, {});
     });
 
-    // ✅ Step 3: Notify space owner (if the user isn’t the owner)
-    const notificationRef = collection(
-      db,
-      "users",
-      spaceOwnerId,
-      "notifications"
-    );
-    await addDoc(notificationRef, {
-      sentAt: serverTimestamp(),
-      sentById: user.id,
-      sentByName: user.name,
-      sentByPhotoUrl: user.photoUrl,
-      spaceId,
-      spaceTitle: spaceData?.bubbleTitle || "",
-      spaceCat: spaceData?.category || "",
-      type: "join",
-      seen: false,
-    });
+    // ✅ Step 3: Notify space owner (outside transaction)
+    if (spaceOwnerId !== user.id) {
+      const notificationRef = collection(
+        db,
+        "users",
+        spaceOwnerId,
+        "notifications"
+      );
+      await addDoc(notificationRef, {
+        sentAt: serverTimestamp(),
+        sentById: user.id,
+        sentByName: user.name,
+        sentByPhotoUrl: user.photoUrl,
+        spaceId,
+        spaceTitle: spaceData?.bubbleTitle || "",
+        spaceCat: spaceData?.category || "",
+        type: "join",
+        seen: false,
+      });
+    }
 
     console.log(`User ${user.id} joined space ${spaceId}`);
   };
@@ -977,6 +983,7 @@ const Funcs = () => {
 
     const spaceRef = doc(db, "spaces", spaceId);
     const memberRef = doc(spaceRef, "members", memberId);
+    const joinedSpaceRef = doc(db, "users", memberId, "joinedSpaces", spaceId);
 
     await runTransaction(db, async (transaction) => {
       const memberSnap = await transaction.get(memberRef);
@@ -989,12 +996,16 @@ const Funcs = () => {
         throw new Error("Host cannot leave the space.");
       }
 
+      // Delete the member from space
       transaction.delete(memberRef);
 
-      // Optional: Decrease members count
+      // Decrease members count
       transaction.update(spaceRef, {
         membersCount: increment(-1),
       });
+
+      // Remove from user's joinedSpaces
+      transaction.delete(joinedSpaceRef);
     });
 
     console.log(`User ${memberId} left space ${spaceId}`);

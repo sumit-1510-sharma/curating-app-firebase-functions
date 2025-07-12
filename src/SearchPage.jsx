@@ -3,11 +3,13 @@ import "./SearchPage.css";
 import {
   collection,
   doc,
+  FieldPath,
   getDoc,
   getDocs,
   limit,
   orderBy,
   query,
+  startAfter,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
@@ -149,6 +151,90 @@ const SearchPage = () => {
     }
   };
 
+  const getJoinedSpacesPaginated = async (userId, pageSize, lastDoc = null) => {
+    try {
+      const joinedCirclesRef = collection(db, "users", userId, "joinedCircles");
+
+      let q = query(
+        joinedCirclesRef,
+        orderBy(FieldPath.documentId()),
+        limit(pageSize)
+      );
+
+      if (lastDoc) {
+        q = query(
+          joinedCirclesRef,
+          orderBy(FieldPath.documentId()),
+          startAfter(lastDoc),
+          limit(pageSize)
+        );
+      }
+
+      const snapshot = await getDocs(q);
+      const spaces = [];
+
+      for (const docSnap of snapshot.docs) {
+        const spaceId = docSnap.id;
+
+        // Optionally fetch full space data from "spaces" collection
+        const spaceRef = doc(db, "spaces", spaceId);
+        const spaceDoc = await getDoc(spaceRef);
+
+        if (spaceDoc.exists()) {
+          spaces.push({
+            id: spaceId,
+            ...spaceDoc.data(),
+          });
+        }
+      }
+
+      const lastVisibleDoc = snapshot.docs.length
+        ? snapshot.docs[snapshot.docs.length - 1]
+        : null;
+      const hasMore = snapshot.size === pageSize;
+
+      return { spaces, lastDoc: lastVisibleDoc, hasMore };
+    } catch (error) {
+      throw new Error("Failed to fetch joined circles: " + error.message);
+    }
+  };
+
+  const getUserSpacesByCategory = async (userId, category) => {
+    try {
+      const userSpacesRef = collection(db, "users", userId, "spaces");
+      const snapshot = await getDocs(userSpacesRef);
+
+      const filteredSpaces = [];
+
+      for (const docSnap of snapshot.docs) {
+        const spaceId = docSnap.data().spaceId;
+
+        if (spaceId) {
+          const spaceRef = doc(db, "spaces", spaceId);
+          const spaceDoc = await getDoc(spaceRef);
+
+          if (spaceDoc.exists()) {
+            const data = spaceDoc.data();
+            if (data.category === category) {
+              filteredSpaces.push({
+                coverUrl: data.coverUrl || null,
+                bubbleTitle: data.bubbleTitle || null,
+                mood: data.mood || null,
+                activity: data.activity || null,
+              });
+            }
+          }
+        }
+      }
+
+      return filteredSpaces;
+    } catch (error) {
+      throw new Error(
+        "Failed to fetch user's spaces by category: " + error.message
+      );
+    }
+  };
+
   return (
     <div className="funcs-container">
       <div className="function-block">
@@ -167,7 +253,9 @@ const SearchPage = () => {
 
       <div className="function-block">
         <h3>Get top popular users</h3>
-        <button onClick={() => fetchTrendyContent("trendy_music")}>get trendy content</button>
+        <button onClick={() => fetchTrendyContent("trendy_music")}>
+          get trendy content
+        </button>
       </div>
     </div>
   );
