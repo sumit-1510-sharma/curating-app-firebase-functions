@@ -217,6 +217,7 @@ const SearchPage = () => {
             const data = spaceDoc.data();
             if (data.category === category) {
               filteredSpaces.push({
+                spaceId,
                 coverUrl: data.coverUrl || null,
                 bubbleTitle: data.bubbleTitle || null,
                 mood: data.mood || null,
