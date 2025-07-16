@@ -10,10 +10,14 @@ import {
   orderBy,
   query,
   startAfter,
+  where,
 } from "firebase/firestore";
 import { db } from "./firebase";
 
 const SearchPage = () => {
+  const userId = "lIMIb48jkcYejCtBkuyNRpeNWW62";
+  const category = "book";
+
   const fetchSpacesFromListWithHostStatus = async (listDocId) => {
     try {
       // Step 1: Get the specified document from "lists"
@@ -153,7 +157,7 @@ const SearchPage = () => {
 
   const getJoinedSpacesPaginated = async (userId, pageSize, lastDoc = null) => {
     try {
-      const joinedCirclesRef = collection(db, "users", userId, "joinedCircles");
+      const joinedCirclesRef = collection(db, "users", userId, "joinedSpaces");
 
       let q = query(
         joinedCirclesRef,
@@ -200,34 +204,32 @@ const SearchPage = () => {
   };
 
   const getUserSpacesByCategory = async (userId, category) => {
+    if (!userId) {
+      throw new Error("userId is required but was not provided.");
+    }
+
     try {
-      const userSpacesRef = collection(db, "users", userId, "spaces");
-      const snapshot = await getDocs(userSpacesRef);
+      const spacesRef = collection(db, "spaces");
+      const q = query(
+        spacesRef,
+        where("hostId", "==", userId),
+        where("category", "==", category)
+      );
 
-      const filteredSpaces = [];
+      const snapshot = await getDocs(q);
 
-      for (const docSnap of snapshot.docs) {
-        const spaceId = docSnap.data().spaceId;
+      const filteredSpaces = snapshot.docs.map((doc) => {
+        const data = doc.data();
+        return {
+          spaceId: doc.id,
+          coverUrl: data.coverUrl || null,
+          bubbleTitle: data.bubbleTitle || null,
+          mood: data.mood || null,
+          activity: data.activity || null,
+        };
+      });
 
-        if (spaceId) {
-          const spaceRef = doc(db, "spaces", spaceId);
-          const spaceDoc = await getDoc(spaceRef);
-
-          if (spaceDoc.exists()) {
-            const data = spaceDoc.data();
-            if (data.category === category) {
-              filteredSpaces.push({
-                spaceId,
-                coverUrl: data.coverUrl || null,
-                bubbleTitle: data.bubbleTitle || null,
-                mood: data.mood || null,
-                activity: data.activity || null,
-              });
-            }
-          }
-        }
-      }
-
+      console.log(filteredSpaces);
       return filteredSpaces;
     } catch (error) {
       throw new Error(
@@ -256,6 +258,13 @@ const SearchPage = () => {
         <h3>Get top popular users</h3>
         <button onClick={() => fetchTrendyContent("trendy_music")}>
           get trendy content
+        </button>
+      </div>
+
+      <div className="function-block">
+        <h3>Get user spaces with category</h3>
+        <button onClick={() => getUserSpacesByCategory(userId, category)}>
+          get user spaces
         </button>
       </div>
     </div>
